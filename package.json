@@ -1,0 +1,17 @@
+{
+  "name": "creator-studio",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.9.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @creator-studio/web --filter @creator-studio/server dev",
+    "build": "pnpm --filter @creator-studio/web build && pnpm --filter @creator-studio/server build",
+    "typecheck": "pnpm -r typecheck",
+    "start": "pnpm --filter @creator-studio/server start",
+    "clean": "node scripts/clean.mjs",
+    "doctor": "node scripts/check-prerequisites.mjs"
+  }
+}
