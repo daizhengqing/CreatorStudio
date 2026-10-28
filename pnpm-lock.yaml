@@ -10,9 +10,9 @@ importers:
 
   apps/server:
     dependencies:
-      '@creator-studio/shared':
+      '@creator-studio/plugin-sdk':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../../packages/plugin-sdk
       '@fastify/multipart':
         specifier: ^9.0.3
         version: 9.4.0
@@ -47,21 +47,12 @@ importers:
 
   apps/web:
     dependencies:
-      '@creator-studio/shared':
+      '@creator-studio/plugin-sdk':
         specifier: workspace:*
-        version: link:../../packages/shared
-      '@radix-ui/react-slot':
-        specifier: ^1.2.0
-        version: 1.5.0(@types/react@19.3.0)(react@19.3.1)
-      '@tanstack/react-query':
-        specifier: ^5.74.4
-        version: 5.104.4(@types/react@19.3.0)(react@19.3.1)
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
+        version: link:../../packages/plugin-sdk
+      '@creator-studio/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       lucide-react:
         specifier: ^0.468.0
         version: 0.468.0(react@19.3.1)
@@ -74,9 +65,6 @@ importers:
       react-rnd:
         specifier: ^10.5.2
         version: 10.5.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      tailwind-merge:
-        specifier: ^3.2.0
-        version: 3.7.0
       zustand:
         specifier: ^5.0.3
         version: 5.0.15(@types/react@19.3.0)(react@19.3.1)
@@ -106,7 +94,88 @@ importers:
         specifier: ^6.3.4
         version: 6.4.4(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
 
-  packages/shared: {}
+  examples/asset-notes:
+    devDependencies:
+      '@creator-studio/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/plugin-sdk:
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/ui:
+    dependencies:
+      '@radix-ui/react-slot':
+        specifier: ^1.2.0
+        version: 1.5.0(@types/react@19.3.0)(react@19.3.1)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      react:
+        specifier: ^19.1.0
+        version: 19.3.1
+      tailwind-merge:
+        specifier: ^3.2.0
+        version: 3.7.0
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.2
+        version: 19.3.0
+
+  plugins/builtin:
+    dependencies:
+      '@creator-studio/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      '@creator-studio/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@tanstack/react-query':
+        specifier: ^5.74.4
+        version: 5.104.4(@types/react@19.3.0)(react@19.3.1)
+      lucide-react:
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.3.1)
+      react:
+        specifier: ^19.1.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.1.3
+        version: 4.3.3(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15))
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.20.5
+      '@types/react':
+        specifier: ^19.1.2
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.1.2
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^4.4.1
+        version: 4.7.0(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15))
+      tailwindcss:
+        specifier: ^4.1.3
+        version: 4.3.3
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.4
+        version: 6.4.4(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
 
 packages:
 

@@ -1,0 +1,30 @@
+{
+  "id": "studio.assets",
+  "name": "素材库",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "styles": [
+    "style.css"
+  ],
+  "windows": [
+    {
+      "id": "main",
+      "title": "素材库",
+      "singleton": true,
+      "width": 440,
+      "height": 420,
+      "minWidth": 220,
+      "minHeight": 190,
+      "toolbar": "素材",
+      "defaultSlot": "left",
+      "actions": [
+        {
+          "title": "导入素材",
+          "method": "importFiles",
+          "input": null
+        }
+      ]
+    }
+  ]
+}

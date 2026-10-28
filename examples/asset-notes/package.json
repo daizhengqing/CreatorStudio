@@ -1,0 +1,8 @@
+{
+  "name": "@creator-studio/example-asset-notes",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "tsc && node build.mjs", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "@creator-studio/plugin-sdk": "workspace:*", "typescript": "^5.8.3" }
+}

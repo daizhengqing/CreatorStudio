@@ -1,0 +1,14 @@
+{
+  "id": "example.asset-notes",
+  "name": "素材笔记示例",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "backend": "backend.mjs",
+  "styles": ["style.css"],
+  "windows": [{
+    "id": "main", "title": "素材笔记", "singleton": false,
+    "width": 420, "height": 360, "minWidth": 280, "minHeight": 260,
+    "toolbar": "素材笔记"
+  }]
+}

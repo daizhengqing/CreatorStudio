@@ -4,7 +4,7 @@ import { basename, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { desc, eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import type { ExportRequest } from '@creator-studio/shared';
+import type { ExportRequest } from '@creator-studio/plugin-sdk';
 import { DIRS } from '../config.js';
 import { db } from '../db/index.js';
 import { assets } from '../db/schema.js';

@@ -7,11 +7,13 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @creator-studio/web --filter @creator-studio/server dev",
-    "build": "pnpm --filter @creator-studio/web build && pnpm --filter @creator-studio/server build",
-    "typecheck": "pnpm -r typecheck",
+    "dev": "pnpm build:plugins && pnpm --parallel --filter @creator-studio/web --filter @creator-studio/server dev",
+    "build": "pnpm build:plugins && pnpm --filter @creator-studio/web build && pnpm --filter @creator-studio/server build",
+    "typecheck": "pnpm --filter @creator-studio/plugin-sdk build && pnpm -r typecheck",
     "start": "pnpm --filter @creator-studio/server start",
     "clean": "node scripts/clean.mjs",
-    "doctor": "node scripts/check-prerequisites.mjs"
+    "doctor": "node scripts/check-prerequisites.mjs",
+    "build:plugins": "pnpm --filter @creator-studio/plugin-sdk build && pnpm --filter @creator-studio/builtin-plugins build",
+    "sdk:pack": "pnpm --filter @creator-studio/plugin-sdk build && pnpm -C packages/plugin-sdk pack --pack-destination ../../artifacts"
   }
 }

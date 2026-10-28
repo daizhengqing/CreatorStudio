@@ -43,7 +43,7 @@ pnpm.cmd dev
 
 只有下载抖音视频时才会让 yt-dlp 读取所选浏览器的 cookies；项目不会保存 cookies。该设置不保证绕过平台对特定视频的限制。
 
-- Web 前端：**http://127.0.0.1:5173**
+- Web 前端：**http://127.0.0.1:8088**
 - Fastify API：**http://127.0.0.1:3000**
 - 健康检查：`http://127.0.0.1:3000/api/health`
 
@@ -72,6 +72,8 @@ pnpm start
 ├── thumbnails/
 ├── exports/
 ├── temp/
+├── plugins/               # 安装的第三方插件
+├── plugin-data/           # 按插件命名空间保存的数据
 └── projects/
 ```
 
@@ -111,7 +113,10 @@ creator-studio/
 ├── apps/
 │   ├── web/                 # React 页面和多窗口工作区
 │   └── server/              # Fastify 路由、SQLite、yt-dlp、FFmpeg
-├── packages/shared/        # 前后端共享的数据类型
+├── packages/plugin-sdk/    # 可独立分发的插件契约和媒体类型
+├── packages/ui/            # 宿主与内置插件的共享 UI 源码
+├── plugins/builtin/        # 五类独立构建的内置窗口插件
+├── examples/asset-notes/   # 原生 DOM + Node.js 完整插件示例
 ├── docs/                   # 第一阶段实施计划 / 架构 / API
 ├── scripts/
 ├── AGENTS.md               # Codex 等代码代理开发规范
@@ -138,10 +143,17 @@ creator-studio/
 - **素材文件很大**：当前 Web 上传暂限制单文件 4 GB，后续需要增加直接索引本地文件的能力，避免重复拷贝。
 - **下载某个平台失败**：更新 `yt-dlp`；平台的反爬策略、版权限制、认证需求和地域限制可能导致失败。仅下载你有权获取和使用的内容。
 
+## 插件扩展
+
+工作台采用可信插件模型，前端通过统一 SDK 接入，后端可注册自己的业务接口。现有五类窗口也作为独立插件加载。插件放入数据目录的 `plugins/<pluginId>` 后重启生效，安装插件无需重新构建宿主。
+
+从 [插件开发与安装指南](docs/PLUGINS.md) 开始；`examples/asset-notes` 演示独立构建、窗口通信、后端方法、存储及事件同步。`pnpm dev` 和 `pnpm build` 会先构建 SDK 和内置插件。
+
 ## 开发文档
 
 - [确认过的多窗口工作区原型](docs/workspace-prototype.png)
 - [第一阶段实施计划](docs/PHASE1_PLAN.md)
 - [技术架构](docs/ARCHITECTURE.md)
+- [插件开发与安装](docs/PLUGINS.md)
 - [API 说明](docs/API.md)
 - [代码代理规则](AGENTS.md)

@@ -4,6 +4,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const DATA_ROOT = resolve(process.env.MEDIA_STUDIO_DATA_DIR ?? join(homedir(), 'MediaStudio'));
+export const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const DIRS = {
   database: join(DATA_ROOT, 'database'),
   videos: join(DATA_ROOT, 'materials', 'videos'),
@@ -13,6 +14,8 @@ export const DIRS = {
   exports: join(DATA_ROOT, 'exports'),
   temp: join(DATA_ROOT, 'temp'),
   projects: join(DATA_ROOT, 'projects'),
+  plugins: join(DATA_ROOT, 'plugins'),
+  pluginData: join(DATA_ROOT, 'plugin-data'),
 } as const;
 
 export function ensureDataDirs(): void {

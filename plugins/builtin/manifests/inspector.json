@@ -1,0 +1,22 @@
+{
+  "id": "studio.inspector",
+  "name": "素材详情",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "styles": [
+    "style.css"
+  ],
+  "windows": [
+    {
+      "id": "main",
+      "title": "素材详情",
+      "singleton": true,
+      "width": 440,
+      "height": 420,
+      "minWidth": 220,
+      "minHeight": 190,
+      "defaultSlot": "right-bottom"
+    }
+  ]
+}

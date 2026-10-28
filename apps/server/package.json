@@ -5,17 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup src/index.ts --format esm --platform node --target node22 --out-dir dist --external better-sqlite3 --external @creator-studio/shared",
+    "build": "tsup src/index.ts --format esm --platform node --target node22 --out-dir dist --external better-sqlite3 --external @creator-studio/plugin-sdk",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fastify/multipart": "^9.0.3",
     "@fastify/static": "^8.1.1",
-    "@creator-studio/shared": "workspace:*",
     "better-sqlite3": "^13.0.1",
     "drizzle-orm": "^0.41.0",
-    "fastify": "^5.3.2"
+    "fastify": "^5.3.2",
+    "@creator-studio/plugin-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

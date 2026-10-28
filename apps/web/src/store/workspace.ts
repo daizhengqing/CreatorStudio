@@ -1,66 +1,79 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { WindowRecord, WindowType } from '@creator-studio/shared';
+import type { JsonValue, WindowHandle, WindowRecord } from '@creator-studio/plugin-sdk';
+import { getView, listViews } from '@/runtime/catalog';
 
-export const TITLES: Record<WindowType, string> = {
-  assets: '素材库', downloads: '解析下载列表', editor: '剪辑工作台',
-  inspector: '素材详情', exports: '导出队列',
-};
+const STORAGE_KEY = 'creator-studio-workspace-v2';
 
 function initialWindows(): WindowRecord[] {
-  const available = typeof window === 'undefined' ? 1440 : window.innerWidth;
-  const height = typeof window === 'undefined' ? 790 : window.innerHeight - 64;
-  const left = Math.min(330, Math.max(250, Math.floor(available * 0.24)));
-  const right = Math.min(370, Math.max(280, Math.floor(available * 0.24)));
-  const center = Math.max(350, available - left - right - 64);
-  const fullHeight = Math.max(330, height - 36);
-  return [
-    { id: 'assets-main', type: 'assets', title: TITLES.assets, x: 14, y: 14, width: left, height: fullHeight, z: 1 },
-    { id: 'editor-main', type: 'editor', title: TITLES.editor, x: left + 26, y: 14, width: center, height: fullHeight, z: 2 },
-    { id: 'downloads-main', type: 'downloads', title: TITLES.downloads, x: left + center + 38, y: 14, width: right, height: Math.floor(fullHeight * 0.48), z: 3 },
-    { id: 'inspector-main', type: 'inspector', title: TITLES.inspector, x: left + center + 38, y: Math.floor(fullHeight * 0.48) + 26, width: right, height: Math.floor(fullHeight * 0.52) - 12, z: 4 },
-  ];
+  // 默认位置来自插件声明，保留现有画布比例。
+  const available = Math.max(850, window.innerWidth);
+  const height = Math.max(500, window.innerHeight) - 46;
+  const left = Math.min(300, Math.max(220, Math.floor(available * 0.22)));
+  const right = Math.min(330, Math.max(230, Math.floor(available * 0.23)));
+  const center = available - left - right - 40;
+  const fullHeight = height - 20;
+  const upperHeight = Math.floor((fullHeight - 10) * 0.48);
+  const slots = {
+    left: { x: 10, y: 10, width: left, height: fullHeight },
+    center: { x: left + 20, y: 10, width: center, height: fullHeight },
+    'right-top': { x: left + center + 30, y: 10, width: right, height: upperHeight },
+    'right-bottom': { x: left + center + 30, y: upperHeight + 20, width: right, height: fullHeight - upperHeight - 10 },
+  };
+  return listViews().filter(view => view.definition.defaultSlot).map((view, index) => ({
+    id: crypto.randomUUID(), viewId: view.id, title: view.definition.title,
+    input: null, minimized: false, z: index + 1, ...slots[view.definition.defaultSlot!],
+  }));
 }
 
 type WorkspaceStore = {
   windows: WindowRecord[];
-  selectedAssetId: string | null;
   projectName: string;
-  open: (type: WindowType) => void;
-  close: (id: string) => void;
-  focus: (id: string) => void;
-  move: (id: string, x: number, y: number) => void;
-  resize: (id: string, x: number, y: number, width: number, height: number) => void;
-  toggleMinimize: (id: string) => void;
-  resetLayout: () => void;
-  selectAsset: (id: string) => void;
-  renameProject: (name: string) => void;
+  open(viewId: string, input?: JsonValue): WindowHandle;
+  close(id: string): void;
+  focus(id: string): void;
+  move(id: string, x: number, y: number): void;
+  resize(id: string, x: number, y: number, width: number, height: number): void;
+  toggleMinimize(id: string): void;
+  resetLayout(): void;
+  renameProject(name: string): void;
 };
 
 export const useWorkspace = create<WorkspaceStore>()(persist((set, get) => ({
-  windows: initialWindows(), selectedAssetId: null, projectName: '未命名项目',
-  open(type) {
-    const same = get().windows.find(item => item.type === type);
+  windows: [], projectName: '未命名项目',
+  open(viewId, input) {
+    const { definition } = getView(viewId);
+    const z = Math.max(0, ...get().windows.map(window => window.z)) + 1;
+    const same = definition.singleton ? get().windows.find(window => window.viewId === viewId) : undefined;
     if (same) {
-      set(state => ({ windows: state.windows.map(w => w.id === same.id ? { ...w, minimized: false, z: Math.max(...state.windows.map(a => a.z)) + 1 } : w) }));
-      return;
+      set(state => ({ windows: state.windows.map(window => window.id === same.id ? { ...window, minimized: false, z, input: input === undefined ? window.input : input } : window) }));
+      return { id: same.id, viewId };
     }
-    const z = Math.max(0, ...get().windows.map(w => w.z)) + 1;
     const id = crypto.randomUUID();
     const offset = Math.min(z * 16, 120);
-    set(state => ({ windows: [...state.windows, { id, type, title: TITLES[type], x: 90 + offset, y: 35 + offset, width: type === 'editor' ? 780 : 440, height: type === 'editor' ? 590 : 420, z }] }));
+    set(state => ({ windows: [...state.windows, {
+      id, viewId, title: definition.title, input: input ?? null, minimized: false,
+      x: 90 + offset, y: 35 + offset, width: definition.width, height: definition.height, z,
+    }] }));
+    return { id, viewId };
   },
-  close(id) { set(state => ({ windows: state.windows.filter(w => w.id !== id) })); },
+  close(id) { set(state => ({ windows: state.windows.filter(window => window.id !== id) })); },
   focus(id) {
-    const current = get().windows.find(w => w.id === id);
-    if (!current || current.z === Math.max(...get().windows.map(w => w.z))) return;
-    const z = Math.max(...get().windows.map(w => w.z)) + 1;
-    set(state => ({ windows: state.windows.map(w => w.id === id ? { ...w, z } : w) }));
+    const current = get().windows.find(window => window.id === id);
+    const z = Math.max(0, ...get().windows.map(window => window.z));
+    if (!current || current.z === z) return;
+    set(state => ({ windows: state.windows.map(window => window.id === id ? { ...window, z: z + 1 } : window) }));
   },
-  move(id, x, y) { set(state => ({ windows: state.windows.map(w => w.id === id ? { ...w, x, y } : w) })); },
-  resize(id, x, y, width, height) { set(state => ({ windows: state.windows.map(w => w.id === id ? { ...w, x, y, width, height } : w) })); },
-  toggleMinimize(id) { set(state => ({ windows: state.windows.map(w => w.id === id ? { ...w, minimized: !w.minimized } : w) })); },
+  move(id, x, y) { set(state => ({ windows: state.windows.map(window => window.id === id ? { ...window, x, y } : window) })); },
+  resize(id, x, y, width, height) { set(state => ({ windows: state.windows.map(window => window.id === id ? { ...window, x, y, width, height } : window) })); },
+  toggleMinimize(id) { set(state => ({ windows: state.windows.map(window => window.id === id ? { ...window, minimized: !window.minimized } : window) })); },
   resetLayout() { set({ windows: initialWindows() }); },
-  selectAsset(id) { set({ selectedAssetId: id }); },
   renameProject(name) { set({ projectName: name.trim().slice(0, 80) || '未命名项目' }); },
-}), { name: 'creator-studio-workspace-v1', partialize: state => ({ windows: state.windows, projectName: state.projectName, selectedAssetId: state.selectedAssetId }) }));
+}), { name: STORAGE_KEY, partialize: state => ({ windows: state.windows, projectName: state.projectName }) }));
+
+export function initializeWorkspace(): void {
+  if (!localStorage.getItem(STORAGE_KEY)) { useWorkspace.getState().resetLayout(); return; }
+  const available = new Set(listViews().map(view => view.id));
+  // 已卸载插件的窗口退出布局，其余窗口保持不变。
+  useWorkspace.setState(state => ({ windows: state.windows.filter(window => available.has(window.viewId)) }));
+}

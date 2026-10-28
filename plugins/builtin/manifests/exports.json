@@ -1,0 +1,22 @@
+{
+  "id": "studio.exports",
+  "name": "导出队列",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "styles": [
+    "style.css"
+  ],
+  "windows": [
+    {
+      "id": "main",
+      "title": "导出队列",
+      "singleton": true,
+      "width": 440,
+      "height": 420,
+      "minWidth": 220,
+      "minHeight": 190,
+      "toolbar": "导出"
+    }
+  ]
+}

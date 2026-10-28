@@ -11,3 +11,7 @@ dist/
 *.db-wal
 /data/
 MediaStudio/
+
+artifacts/
+*.tsbuildinfo
+.archify/

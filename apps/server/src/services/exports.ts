@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { desc, eq } from 'drizzle-orm';
-import type { ExportRequest, ExportTask } from '@creator-studio/shared';
+import type { ExportRequest, ExportTask } from '@creator-studio/plugin-sdk';
 import { DIRS, FFMPEG } from '../config.js';
 import { db } from '../db/index.js';
 import { assets, exportTasks } from '../db/schema.js';

@@ -1,0 +1,30 @@
+{
+  "id": "studio.downloads",
+  "name": "解析下载列表",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "styles": [
+    "style.css"
+  ],
+  "windows": [
+    {
+      "id": "main",
+      "title": "解析下载列表",
+      "singleton": true,
+      "width": 440,
+      "height": 420,
+      "minWidth": 220,
+      "minHeight": 190,
+      "toolbar": "下载",
+      "defaultSlot": "right-top",
+      "actions": [
+        {
+          "title": "粘贴链接下载",
+          "method": "focusInput",
+          "input": null
+        }
+      ]
+    }
+  ]
+}

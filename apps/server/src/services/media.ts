@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { extname, join, basename } from 'node:path';
-import type { Asset, AssetSource, AssetType } from '@creator-studio/shared';
+import type { Asset, AssetSource, AssetType } from '@creator-studio/plugin-sdk';
 import { DIRS, FFMPEG, FFPROBE } from '../config.js';
 import { db } from '../db/index.js';
 import { assets } from '../db/schema.js';

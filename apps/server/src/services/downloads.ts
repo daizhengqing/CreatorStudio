@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { desc, eq } from 'drizzle-orm';
-import type { AssetSource, DownloadPreview, DownloadTask } from '@creator-studio/shared';
+import type { AssetSource, DownloadPreview, DownloadTask } from '@creator-studio/plugin-sdk';
 import { DIRS, ytDlpBin, YT_DLP_COOKIES_BROWSER } from '../config.js';
 import { db } from '../db/index.js';
 import { downloadTasks } from '../db/schema.js';

@@ -1,0 +1,23 @@
+{
+  "id": "studio.editor",
+  "name": "剪辑工作台",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "styles": [
+    "style.css"
+  ],
+  "windows": [
+    {
+      "id": "main",
+      "title": "剪辑工作台",
+      "singleton": true,
+      "width": 780,
+      "height": 590,
+      "minWidth": 350,
+      "minHeight": 300,
+      "toolbar": "剪辑",
+      "defaultSlot": "center"
+    }
+  ]
+}

@@ -1,10 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
+import { initializeRuntime } from './runtime';
 import './styles.css';
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 3000 } } });
-const root = document.getElementById('root');
-if (!root) throw new Error('Missing root element');
-createRoot(root).render(<StrictMode><QueryClientProvider client={queryClient}><App /></QueryClientProvider></StrictMode>);
+const container = document.getElementById('root')!;
+async function start() {
+  const runtime = await initializeRuntime();
+  const root = createRoot(container);
+  root.render(<StrictMode><App /></StrictMode>);
+  await runtime.activate();
+  import.meta.hot?.dispose(() => { root.unmount(); runtime.dispose(); });
+}
+void start().catch((error: Error) => { container.textContent = `工作台启动失败：${error.message}`; });
