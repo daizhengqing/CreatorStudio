@@ -1,0 +1,19 @@
+{
+  "id": "studio.trends",
+  "name": "热点追踪",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "backend": "backend.mjs",
+  "styles": ["style.css"],
+  "windows": [{
+    "id": "main",
+    "title": "热点追踪",
+    "singleton": true,
+    "width": 1100,
+    "height": 720,
+    "minWidth": 760,
+    "minHeight": 480,
+    "toolbar": "热点"
+  }]
+}

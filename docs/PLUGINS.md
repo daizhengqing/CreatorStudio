@@ -1,6 +1,6 @@
 # 插件开发与安装
 
-插件通过 SDK 访问工作台能力，独立构建后放入数据目录即可接入。内置的五类窗口使用完全相同的加载器和契约。
+插件通过 SDK 访问工作台能力，独立构建后放入数据目录即可接入。内置的六类窗口使用完全相同的加载器和契约。
 
 采用 ComfyUI 式可信扩展：前端共享浏览器页面，后端共享本地 Node.js 进程。模块边界用于组织代码，不提供安全沙箱、进程故障隔离或依赖隔离。
 
@@ -108,11 +108,14 @@ pnpm build
 | `plugins` | 调用插件后端接口 | 在服务内直接调用插件后端接口 |
 | `events` | 发布事件并订阅 SSE 转发的事件 | 发布和订阅同一事件总线 |
 | `storage` | 当前插件的持久化存储 | 同一插件的同一存储 |
+| `dataDirectory` | 不提供 | 宿主创建的插件专属绝对目录，可在其中维护 SQLite 或其他文件 |
 | `api` | 窗口通过 `context.window.expose` 注册接口 | `context.api.expose` 注册插件接口 |
 
 `media` 提供 `assets()`、`downloads()`、`previewDownload(url)`、`startDownload({ previewId, resolution })`、`cancelDownload(id)`、`deleteDownload(id)`、`exports()`、`startExport(request)`。下载和导出仍由现有媒体服务执行；二进制素材走 HTTP 上传或流式读取。
 
 `storage.get<T>(key)` 返回值或 `undefined`，`set(key, JsonValue)` 和 `delete(key)` 返回 `Promise<void>`。数据保存在 `plugin-data/<pluginId>/storage.json`，同一插件按顺序写入。清空键使用 `delete`，保存空值使用 `null`。
+
+`ServerContext.dataDirectory` 是只读目录路径，后台可以在其中创建自己的数据文件。`storage` 有浏览器读取接口，密钥与来源 Cookie 应通过后台专用接口写入插件数据库，读取配置只返回是否已配置。
 
 ## 注册和调用接口
 
@@ -179,6 +182,8 @@ await sdk.windows.call(editor.id, 'seek', { seconds: 2 });
 剪辑器的播放和定位方法要求先加载视频。素材选择保留现有行为：素材库、详情和单例剪辑器跟随同一浏览器选择状态。
 
 ## 状态和事件
+
+浏览器每次建立或重新建立 SSE 连接时，会本地派发 `studio.connection.open`，插件可订阅并重读业务快照。热点插件另外发布 `studio.trends.changed` 通知资讯、来源状态和 AI 处理变化。
 
 状态使用“先读取快照，再订阅变化”。事件只通知已经发生的变化，不提供历史重放。自定义主题以插件 ID 为前缀，负载为 JSON 值：
 

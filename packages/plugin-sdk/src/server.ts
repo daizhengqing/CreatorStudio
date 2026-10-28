@@ -3,6 +3,8 @@ import type { ApiPublisher, ApiRouter, Dispose, PluginEvents, PluginStorage } fr
 
 export type ServerContext = {
   pluginId: string;
+  /** 插件自己的持久化目录，由宿主创建。 */
+  readonly dataDirectory: string;
   media: MediaApi & { importFile(path: string): Promise<Asset> };
   api: ApiPublisher;
   plugins: ApiRouter;

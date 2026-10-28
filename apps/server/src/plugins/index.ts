@@ -36,7 +36,7 @@ export async function installPlugins(app: FastifyInstance): Promise<void> {
       if (manifest.backend) {
         const { default: backend } = await import(pathToFileURL(join(directory, manifest.backend)).href) as { default: BackendPlugin };
         const dispose = await backend.activate({
-          pluginId: manifest.id, media, storage: store.storage,
+          pluginId: manifest.id, dataDirectory: join(DIRS.pluginData, manifest.id), media, storage: store.storage,
           api: { expose: handlers => scope.add(registry.expose(manifest.id, handlers)) },
           plugins: { call: registry.call, client: target => createApiClient(target, registry.call) },
           events: { emit: events.emit, subscribe: (topic, handler) => scope.add(events.subscribe(topic, handler)) },

@@ -58,6 +58,7 @@ export async function initializeRuntime() {
   const source = new EventSource('/api/events');
   source.addEventListener('studio', event => bus.dispatch(JSON.parse((event as MessageEvent<string>).data) as EventMessage));
   source.addEventListener('open', () => {
+    bus.dispatch({ topic: 'studio.connection.open', payload: null });
     for (const type of ['assets', 'downloads', 'exports']) bus.dispatch({ topic: `media.${type}.changed`, payload: null });
   });
   scope.add(() => source.close());
