@@ -3,6 +3,7 @@ import type { BrowserSDK, WindowApi, WindowContext } from '@creator-studio/plugi
 import { createApiClient, createApiRegistry, createScope } from '@creator-studio/plugin-sdk/runtime';
 import { useWorkspace } from '@/store/workspace';
 import { getView } from './catalog';
+import { json, request } from './http';
 
 type Waiter = { resolve: (handle: WindowHandle) => void; reject: (error: Error) => void };
 type Instance = {
@@ -39,6 +40,8 @@ function release(instance: Instance, remount = false): void {
   for (const waiter of instance.waiters) waiter.reject(new Error(`窗口已关闭：${instance.id}`));
   instance.waiters.clear();
   if (instances.get(instance.id) === instance) instances.delete(instance.id);
+  const view = getView(instance.viewId);
+  void request(`/api/plugins/${encodeURIComponent(view.pluginId)}/window-closed`, json({ windowId: instance.id })).catch(() => {});
 }
 async function call(id: string, method: string, input: unknown): Promise<unknown> {
   await ready(id);
@@ -88,6 +91,8 @@ export function mountWindow(id: string, container: HTMLElement, sdkFor: (pluginI
   };
   // 在宿主提交完成后挂载独立根；StrictMode 取消的挂载不会执行插件代码。
   void Promise.resolve().then(async () => {
+    if (instance.closed) return;
+    await request(`/api/plugins/${encodeURIComponent(view.pluginId)}/window-opened`, json({ windowId: id }));
     if (instance.closed) return;
     const dispose = await view.mount(container, context);
     if (instance.closed) { dispose(); return; }

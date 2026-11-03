@@ -5,6 +5,7 @@
   "sdkVersion": 1,
   "frontend": "frontend.js",
   "backend": "backend.mjs",
+  "autoStartBackend": false,
   "styles": ["style.css"],
   "windows": [{
     "id": "main",
@@ -14,6 +15,7 @@
     "height": 720,
     "minWidth": 760,
     "minHeight": 480,
-    "toolbar": "热点"
+    "toolbar": "热点",
+    "autoStartBackend": false
   }]
 }

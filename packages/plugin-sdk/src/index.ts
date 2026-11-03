@@ -43,6 +43,7 @@ export type WindowDefinition = {
   toolbar?: string;
   actions?: { title: string; method: string; input: JsonValue }[];
   defaultSlot?: 'left' | 'center' | 'right-top' | 'right-bottom';
+  autoStartBackend?: boolean;
 };
 export type PluginManifest = {
   id: string;
@@ -52,6 +53,7 @@ export type PluginManifest = {
   frontend?: string;
   styles?: string[];
   backend?: string;
+  autoStartBackend?: boolean;
   windows: WindowDefinition[];
 };
 export type PluginInfo = {

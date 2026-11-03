@@ -6,24 +6,7 @@ import { getView, listViews } from '@/runtime/catalog';
 const STORAGE_KEY = 'creator-studio-workspace-v2';
 
 function initialWindows(): WindowRecord[] {
-  // 默认位置来自插件声明，保留现有画布比例。
-  const available = Math.max(850, window.innerWidth);
-  const height = Math.max(500, window.innerHeight) - 46;
-  const left = Math.min(300, Math.max(220, Math.floor(available * 0.22)));
-  const right = Math.min(330, Math.max(230, Math.floor(available * 0.23)));
-  const center = available - left - right - 40;
-  const fullHeight = height - 20;
-  const upperHeight = Math.floor((fullHeight - 10) * 0.48);
-  const slots = {
-    left: { x: 10, y: 10, width: left, height: fullHeight },
-    center: { x: left + 20, y: 10, width: center, height: fullHeight },
-    'right-top': { x: left + center + 30, y: 10, width: right, height: upperHeight },
-    'right-bottom': { x: left + center + 30, y: upperHeight + 20, width: right, height: fullHeight - upperHeight - 10 },
-  };
-  return listViews().filter(view => view.definition.defaultSlot).map((view, index) => ({
-    id: crypto.randomUUID(), viewId: view.id, title: view.definition.title,
-    input: null, minimized: false, z: index + 1, ...slots[view.definition.defaultSlot!],
-  }));
+  return [];
 }
 
 type WorkspaceStore = {

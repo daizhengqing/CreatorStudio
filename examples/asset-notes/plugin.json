@@ -5,10 +5,11 @@
   "sdkVersion": 1,
   "frontend": "frontend.js",
   "backend": "backend.mjs",
+  "autoStartBackend": false,
   "styles": ["style.css"],
   "windows": [{
     "id": "main", "title": "素材笔记", "singleton": false,
     "width": 420, "height": 360, "minWidth": 280, "minHeight": 260,
-    "toolbar": "素材笔记"
+    "toolbar": "素材笔记", "autoStartBackend": false
   }]
 }
