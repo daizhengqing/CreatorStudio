@@ -1,4 +1,5 @@
 import type { Asset, MediaApi } from './media.js';
+import type { ModelService } from './models.js';
 import type { ApiPublisher, ApiRouter, Dispose, PluginEvents, PluginStorage } from './index.js';
 
 export type ServerContext = {
@@ -6,6 +7,7 @@ export type ServerContext = {
   /** 插件自己的持久化目录，由宿主创建。 */
   readonly dataDirectory: string;
   media: MediaApi & { importFile(path: string): Promise<Asset> };
+  models: ModelService;
   api: ApiPublisher;
   plugins: ApiRouter;
   events: PluginEvents;

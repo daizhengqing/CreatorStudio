@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, ChevronLeft, ChevronRight, Flame, Newspaper, RefreshCw, Search, Settings2 } from 'lucide-react';
+import { MODEL_SETTINGS_VIEW } from '@creator-studio/plugin-sdk';
 import { Button } from '@creator-studio/ui/button';
 import { Input } from '@creator-studio/ui/input';
 import { usePlugin } from '../../context';
@@ -59,8 +60,9 @@ export function TrendsWindow() {
   const total = page.data?.total ?? 0;
   const queue = status.data?.queue;
   const refreshing = refresh.isPending || enabled.some(source => source.state === 'refreshing');
+  function openModelSettings() { void sdk.windows.open(MODEL_SETTINGS_VIEW).catch((error: Error) => window.alert(error.message)); }
 
-  if (settings) return <div className="trends-root"><SettingsPanel sources={sources} onClose={() => setSettings(false)} /></div>;
+  if (settings) return <div className="trends-root"><SettingsPanel sources={sources} onClose={() => setSettings(false)} onOpenModels={openModelSettings} /></div>;
   return <TopicDraftContext value={{ values: noteDrafts, update: updateDraft }}><div className="trends-root">
     <header className="trend-topbar">
       <div className="trend-tabs">{tabs.map(({ id, title, icon: Icon }) => <button key={id} type="button" className={`trend-tab ${tab === id ? 'active' : ''}`} aria-pressed={tab === id}
@@ -84,7 +86,8 @@ export function TrendsWindow() {
       <span>{enabled.length} 个来源已启用</span>
       {failed.length > 0 && <button type="button" className="trend-health-action" onClick={() => setSettings(true)}>{failed.length} 个来源需要处理</button>}
       <span className="trend-spacer" />
-      <span>{status.data?.modelReady ? status.data.autoGenerate ? 'AI 自动处理已就绪' : 'AI 已就绪 · 自动处理已暂停' : 'AI 未就绪，可在设置中配置并测试'}</span>
+      {status.data?.modelReady ? <span>{status.data.autoGenerate ? 'AI 自动处理已就绪' : 'AI 已就绪 · 自动处理已暂停'}</span>
+        : <button type="button" className="trend-health-action" onClick={openModelSettings}>AI 未就绪，打开大模型配置</button>}
       {queue && (queue.pending > 0 || queue.processing > 0) && <span>加工中 {queue.processing} · {status.data?.autoGenerate ? '待处理' : '已暂停'} {queue.pending}</span>}
       {queue && queue.failed > 0 && <span>AI 失败 {queue.failed}</span>}
     </div>

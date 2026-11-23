@@ -7,8 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { DATA_ROOT } from './config.js';
 import './db/index.js';
 import { installApi } from './routes/api.js';
+import { installModelRoutes } from './routes/models.js';
 import { installPlugins } from './plugins/index.js';
 import { closeClients } from './services/events.js';
+import { initializeModels } from './services/models.js';
 
 const app = Fastify({ logger: true, bodyLimit: 1_048_576 });
 app.addHook('preClose', async () => closeClients());
@@ -17,6 +19,8 @@ await app.register(multipart, {
   limits: { fileSize: 4 * 1024 * 1024 * 1024, files: 1, fields: 0 },
 });
 await installApi(app);
+initializeModels();
+installModelRoutes(app);
 await installPlugins(app);
 
 // After pnpm build, the same local server can also serve the web app.

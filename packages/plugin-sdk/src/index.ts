@@ -1,4 +1,5 @@
 export * from './media.js';
+export * from './models.js';
 
 export const SDK_VERSION = 1;
 export type Dispose = () => void;

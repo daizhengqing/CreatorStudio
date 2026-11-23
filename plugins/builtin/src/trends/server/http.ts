@@ -7,7 +7,6 @@ export type HttpOptions = {
   timeoutMs?: number;
   method?: string;
   body?: string;
-  direct?: boolean;
 };
 export type TextResponse = { body: string; status: number; headers: Record<string, string>; cookies: string[] };
 
@@ -17,9 +16,9 @@ const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
 
 function transport(url: URL, options: HttpOptions) {
   const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  // 本地模型地址即使配置了出口代理，也始终在本机直连。
+  // 回环地址始终直连。
   const loopback = hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '::1' || /^127\./.test(hostname) || hostname.startsWith('::ffff:127.');
-  if (options.direct || loopback || !options.proxyUrl) return directAgent ??= new Agent();
+  if (loopback || !options.proxyUrl) return directAgent ??= new Agent();
   let agent = proxies.get(options.proxyUrl);
   if (!agent) {
     agent = new ProxyAgent(options.proxyUrl);

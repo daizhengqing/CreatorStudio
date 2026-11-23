@@ -4,7 +4,7 @@ import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-for (const name of ['assets', 'downloads', 'editor', 'inspector', 'exports', 'trends']) {
+for (const name of ['assets', 'downloads', 'editor', 'inspector', 'exports', 'models', 'trends']) {
   const manifest = JSON.parse(await readFile(new URL(`./manifests/${name}.json`, import.meta.url), 'utf8'));
   const outDir = join(import.meta.dirname, 'dist', manifest.id);
   await build({

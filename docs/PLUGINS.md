@@ -1,6 +1,6 @@
 # 插件开发与安装
 
-插件通过 SDK 访问工作台能力，独立构建后放入数据目录即可接入。内置的六类窗口使用完全相同的加载器和契约。
+插件通过 SDK 访问工作台能力，独立构建后放入数据目录即可接入。内置窗口使用相同的加载器和契约。
 
 采用 ComfyUI 式可信扩展：前端共享浏览器页面，后端共享本地 Node.js 进程。模块边界用于组织代码，不提供安全沙箱、进程故障隔离或依赖隔离。
 
@@ -103,6 +103,7 @@ pnpm build
 | 能力 | 浏览器 | 后端 |
 | --- | --- | --- |
 | `media` | 素材、下载、导出 API，以及 `upload(File)` | 相同领域 API，以及 `importFile(绝对路径)` |
+| `models` | 读取、保存、测试工作台模型配置，调用当前模型 | 调用当前模型，或在领取任务时固定模型 |
 | `windows` | 打开、查找、聚焦、关闭、调用实例接口 | 不提供；后端通过事件通知界面 |
 | `selection` | `getSnapshot()`、`subscribe(listener)`、`set(assetId 或 null)` | 不提供；浏览器选择不属于服务端状态 |
 | `plugins` | 调用插件后端接口 | 在服务内直接调用插件后端接口 |
@@ -112,6 +113,16 @@ pnpm build
 | `api` | 窗口通过 `context.window.expose` 注册接口 | `context.api.expose` 注册插件接口 |
 
 `media` 提供 `assets()`、`downloads()`、`previewDownload(url)`、`startDownload({ previewId, resolution })`、`cancelDownload(id)`、`deleteDownload(id)`、`exports()`、`startExport(request)`。下载和导出仍由现有媒体服务执行；二进制素材走 HTTP 上传或流式读取。
+
+窗口通过 `sdk.models.complete(input)` 调用在「大模型配置」中启用并通过测试的模型。`messages` 接受 `system`、`user`、`assistant` 三种角色，返回 `Promise<string>`。传入 `json: true` 可请求 JSON 输出。
+
+```ts
+const title = await sdk.models.complete({
+  messages: [{ role: 'user', content: '为一段城市夜景短片写一个中文标题。' }],
+});
+```
+
+后端通过 `context.models.complete(input, signal?)` 调用同一个模型。队列任务可以先调用 `context.models.active()`，再用返回的 `complete` 执行，以便任务记录与实际使用的模型一致。前端可通过 `getConfig()` 检查当前配置和验证状态，API Key 只通过 `hasKey` 表示。订阅 `studio.models.changed` 可以在配置或验证状态变化后重新读取。
 
 `storage.get<T>(key)` 返回值或 `undefined`，`set(key, JsonValue)` 和 `delete(key)` 返回 `Promise<void>`。数据保存在 `plugin-data/<pluginId>/storage.json`，同一插件按顺序写入。清空键使用 `delete`，保存空值使用 `null`。
 

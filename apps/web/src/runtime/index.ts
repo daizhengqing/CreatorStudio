@@ -5,6 +5,7 @@ import { initializeWorkspace } from '@/store/workspace';
 import { clearViews, registerView } from './catalog';
 import { json, request } from './http';
 import { media } from './media';
+import { models } from './models';
 import { selection } from './selection';
 import { disposeWindows, windows } from './windows';
 
@@ -19,7 +20,7 @@ export function sdkFor(pluginId: string, scope: ReturnType<typeof createScope>):
     async delete(key) { await request(`${prefix}/storage/${encodeURIComponent(key)}`, { method: 'DELETE' }); },
   };
   return {
-    pluginId, media, windows, storage,
+    pluginId, media, models, windows, storage,
     selection: { ...selection, subscribe: listener => scope.add(selection.subscribe(listener)) },
     plugins: { call, client: target => createApiClient(target, call) },
     events: {

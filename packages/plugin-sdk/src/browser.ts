@@ -1,4 +1,5 @@
 import type { MediaApi } from './media.js';
+import type { ModelCompletionInput, ModelConfig, ModelConfigInput, ModelProfileId, ModelTestResult } from './models.js';
 import type {
   ApiPublisher, ApiRouter, Dispose, JsonValue, PluginEvents,
   PluginStorage, ReadableValue, WindowHandle,
@@ -13,6 +14,12 @@ export type WindowApi = ApiRouter & {
 export type BrowserSDK = {
   pluginId: string;
   media: MediaApi & { upload(file: File): Promise<{ id: string }> };
+  models: {
+    getConfig(): Promise<ModelConfig>;
+    saveConfig(input: ModelConfigInput): Promise<ModelConfig>;
+    testConnection(profileId: ModelProfileId): Promise<ModelTestResult>;
+    complete(input: ModelCompletionInput): Promise<string>;
+  };
   selection: ReadableValue<string | null> & { set(assetId: string | null): void };
   windows: WindowApi;
   plugins: ApiRouter;

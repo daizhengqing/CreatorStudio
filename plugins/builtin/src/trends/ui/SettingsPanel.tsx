@@ -1,41 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@creator-studio/ui/button';
 import { Input } from '@creator-studio/ui/input';
-import type { ConfigInput, SourceStatus, TrendsConfig } from '../contracts';
-import { ModelSettings } from './ModelSettings';
+import type { SourceStatus, TrendsConfig } from '../contracts';
 import { SourceSettings } from './SourceSettings';
 import { useTrendsApi } from './shared';
 
-function editableConfig(config: TrendsConfig): ConfigInput {
-  return {
-    activeProfile: config.activeProfile, autoGenerate: config.autoGenerate, proxyUrl: config.proxyUrl,
-    profiles: {
-      local: { baseUrl: config.profiles.local.baseUrl, model: config.profiles.local.model },
-      remote: { baseUrl: config.profiles.remote.baseUrl, model: config.profiles.remote.model },
-    },
-  };
-}
-
-export function SettingsPanel({ sources, onClose }: { sources: SourceStatus[]; onClose: () => void }) {
+export function SettingsPanel({ sources, onClose, onOpenModels }: { sources: SourceStatus[]; onClose: () => void; onOpenModels: () => void }) {
   const api = useTrendsApi();
   const client = useQueryClient();
-  const [draft, setDraft] = useState<ConfigInput | null>(null);
-  const [message, setMessage] = useState('');
+  const [edits, setEdits] = useState<TrendsConfig | null>(null);
   const config = useQuery({ queryKey: ['trends', 'config'], queryFn: () => api.call('getConfig', null) });
-  // SSE 刷新配置时保留正在编辑的内容，密钥仅存在当前表单内存中。
-  useEffect(() => { if (config.data && draft === null) setDraft(editableConfig(config.data)); }, [config.data, draft]);
+  const draft = edits ?? config.data;
   const save = useMutation({
-    mutationFn: (input: ConfigInput) => api.call('saveConfig', input),
+    mutationFn: (input: TrendsConfig) => api.call('saveConfig', input),
     onSuccess: value => {
       client.setQueryData(['trends', 'config'], value);
-      setDraft(editableConfig(value)); setMessage('设置已保存；模型配置变更后请测试连接。');
+      setEdits(null);
       void client.invalidateQueries({ queryKey: ['trends'] });
     },
   });
-  const dirty = draft !== null && config.data !== undefined && JSON.stringify(draft) !== JSON.stringify(editableConfig(config.data));
-  function update(value: ConfigInput) { setDraft(value); setMessage(''); }
+  const dirty = draft && config.data && (draft.autoGenerate !== config.data.autoGenerate || draft.proxyUrl !== config.data.proxyUrl);
+  function update(value: TrendsConfig) { setEdits(value); save.reset(); }
   return <div className="trend-settings-panel">
     <header className="trend-settings-header">
       <Button variant="ghost" size="sm" onClick={onClose}><ArrowLeft size={14} />返回看板</Button><strong>热点追踪设置</strong><span className="trend-spacer" />
@@ -44,13 +31,20 @@ export function SettingsPanel({ sources, onClose }: { sources: SourceStatus[]; o
     </header>
     <div className="trend-settings-scroll">
       {(config.error || save.error) && <p className="trend-error" role="alert">{(config.error ?? save.error)?.message}</p>}
-      {message && <p className="trend-ready" role="status">{message}</p>}
-      {!draft || !config.data ? <div className="trend-empty">{config.isError ? '无法读取设置' : '正在读取设置…'}</div> : <fieldset className="trend-settings-fields" disabled={save.isPending}>
-        <ModelSettings draft={draft} saved={config.data} dirty={dirty} onChange={update} />
+      {save.isSuccess && <p className="trend-ready" role="status">设置已保存</p>}
+      {!draft ? <div className="trend-empty">{config.isError ? '无法读取设置' : '正在读取设置…'}</div> : <fieldset className="trend-settings-fields" disabled={save.isPending}>
         <section className="trend-settings-section">
-          <h3>网络代理</h3>
+          <h3>中文翻译与摘要</h3>
+          <div className="trend-translation-options">
+            <label className="trend-checkbox"><input type="checkbox" checked={draft.autoGenerate} onChange={event => update({ ...draft, autoGenerate: event.target.checked })} />自动翻译与摘要</label>
+            <Button variant="outline" size="sm" onClick={onOpenModels}>打开大模型配置</Button>
+          </div>
+          <p className="trend-hint">有正文或快讯时生成摘要。只有标题时仅翻译。</p>
+        </section>
+        <section className="trend-settings-section">
+          <h3>采集代理</h3>
           <label>HTTP 代理地址<Input value={draft.proxyUrl} placeholder="http://127.0.0.1:7897（留空直连）" autoComplete="off" onChange={event => update({ ...draft, proxyUrl: event.target.value })} /></label>
-          <p className="trend-hint">用于资讯采集和远程模型。localhost、127.0.0.1 和 ::1 始终直连，本地模型不经过代理。</p>
+          <p className="trend-hint">用于资讯采集。回环地址始终直连。</p>
         </section>
       </fieldset>}
       <SourceSettings sources={sources} />

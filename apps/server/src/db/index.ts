@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS export_tasks (
   progress INTEGER NOT NULL DEFAULT 0, output_file TEXT, error TEXT,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS model_settings (
+  id INTEGER PRIMARY KEY, config TEXT NOT NULL
+);
 UPDATE download_tasks SET status='failed', error='程序已重启，请重新创建下载任务' WHERE status='running' OR status='queued';
 UPDATE export_tasks SET status='failed', error='程序已重启，请重新导出' WHERE status='running' OR status='queued';
 `);

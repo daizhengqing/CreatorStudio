@@ -8,6 +8,7 @@ import type { BackendPlugin } from '@creator-studio/plugin-sdk/server';
 import { createApiClient, createApiRegistry, createScope } from '@creator-studio/plugin-sdk/runtime';
 import { DIRS, REPOSITORY_ROOT } from '../config.js';
 import { events } from '../services/events.js';
+import { models } from '../services/models.js';
 import { media } from './media.js';
 import { createPluginStorage } from './storage.js';
 
@@ -43,7 +44,7 @@ export async function installPlugins(app: FastifyInstance): Promise<void> {
           currentScope = pluginScope;
           const { default: backend } = await import(pathToFileURL(join(directory, manifest.backend!)).href) as { default: BackendPlugin };
           const dispose = await backend.activate({
-            pluginId: manifest.id, dataDirectory: join(DIRS.pluginData, manifest.id), media, storage: store.storage,
+            pluginId: manifest.id, dataDirectory: join(DIRS.pluginData, manifest.id), media, models, storage: store.storage,
             api: { expose: handlers => pluginScope.add(registry.expose(manifest.id, handlers)) },
             plugins: { call: registry.call, client: target => createApiClient(target, registry.call) },
             events: { emit: events.emit, subscribe: (topic, handler) => pluginScope.add(events.subscribe(topic, handler)) },

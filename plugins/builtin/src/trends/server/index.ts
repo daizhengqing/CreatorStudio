@@ -1,3 +1,4 @@
+import { MODEL_CONFIG_CHANGED } from '@creator-studio/plugin-sdk';
 import type { BackendPlugin } from '@creator-studio/plugin-sdk/server';
 import type { TrendsApi } from '../contracts';
 import { sourceDefinitions } from './catalog';
@@ -7,16 +8,16 @@ import { createSettings } from './settings';
 import { createItems } from './items';
 import { createQueue } from './queue';
 import { createAiWorker } from './ai-worker';
-import { describeAiFailure, testModelConnection } from './ai-client';
 import { closeTransport } from './http';
 
 export default {
   activate(context) {
     const db = openDatabase(context.dataDirectory, sourceDefinitions);
     const settings = createSettings(db, sourceDefinitions);
-    const modelReady = () => { const config = settings.getRuntimeConfig(); return config.profiles[config.activeProfile].verified; };
-    const items = createItems(db, sourceDefinitions, () => ({ ready: modelReady(), automatic: settings.getRuntimeConfig().autoGenerate }));
-    const queue = createQueue(db, settings.getRuntimeConfig);
+    const modelReady = () => context.models.active().verified;
+    const automatic = () => settings.getConfig().autoGenerate;
+    const items = createItems(db, sourceDefinitions, () => ({ ready: modelReady(), automatic: automatic() }));
+    const queue = createQueue(db, automatic);
     let disposed = false;
     let scheduled = false;
     function notify() {
@@ -27,9 +28,9 @@ export default {
         if (!disposed) void context.events.emit('studio.trends.changed', null);
       });
     }
-    const worker = createAiWorker(queue, notify);
+    const worker = createAiWorker(queue, context.models, notify);
+    const unsubscribeModels = context.events.subscribe(MODEL_CONFIG_CHANGED, () => { worker.wake(); notify(); });
     const active = new Map<string, { controller: AbortController; promise: Promise<void> }>();
-    const modelTests = new Set<AbortController>();
 
     function refreshOne(id: string, credentialTest = false): Promise<void> {
       const underway = active.get(id);
@@ -47,7 +48,7 @@ export default {
       notify();
       const promise = (async () => {
         try {
-          const batch = await collectSource(definition, { proxyUrl: settings.getRuntimeConfig().proxyUrl, cookie: row.cookie, signal: controller.signal });
+          const batch = await collectSource(definition, { proxyUrl: settings.getConfig().proxyUrl, cookie: row.cookie, signal: controller.signal });
           if (disposed || controller.signal.aborted || settings.sourceRow(id).cookie !== row.cookie) return;
           items.ingest(definition, batch);
           if (credentialTest) db.prepare('UPDATE sources SET enabled=1 WHERE id=?').run(id);
@@ -74,7 +75,7 @@ export default {
       list: query => items.list(query),
       rankings: query => settings.sources().filter(source => (source.kind === 'hot' || source.kind === 'community') && (!query.sourceId || query.sourceId === source.id) && (!query.category || query.category === source.category))
         .map(source => ({ source, items: items.ranked(source.id, query) })),
-      getStatus: () => ({ sources: settings.sources(), queue: queue.counts(), modelReady: modelReady(), autoGenerate: settings.getRuntimeConfig().autoGenerate }),
+      getStatus: () => ({ sources: settings.sources(), queue: queue.counts(), modelReady: modelReady(), autoGenerate: automatic() }),
       refresh: ({ sourceId }) => { if (sourceId) { settings.sourceRow(sourceId); void refreshOne(sourceId); } else refreshEnabled(); return null; },
       setSourceEnabled: ({ sourceId, enabled }) => {
         settings.setEnabled(sourceId, enabled);
@@ -94,23 +95,10 @@ export default {
       removeTopic: ({ itemId }) => { items.removeTopic(itemId); notify(); return null; },
       getConfig: () => settings.getConfig(),
       saveConfig: config => { const saved = settings.saveConfig(config); notify(); worker.wake(); return saved; },
-      testModel: async ({ profileId }) => {
-        if (profileId !== 'local' && profileId !== 'remote') throw new Error('模型配置不存在');
-        const config = settings.getRuntimeConfig();
-        settings.markUnverified(profileId);
-        const controller = new AbortController();
-        modelTests.add(controller);
-        try {
-          await testModelConnection(config.profiles[profileId], profileId === 'local' ? '' : config.proxyUrl, controller.signal);
-          if (disposed) return { ok: false, message: '服务已停止' };
-          settings.markVerified(profileId, config);
-          worker.wake(); notify();
-          return { ok: true, message: '连接及 JSON 输出验证成功，自动处理已就绪' };
-        } catch (error) {
-          return { ok: false, message: describeAiFailure(error).message };
-        } finally { modelTests.delete(controller); }
+      retryAi: ({ itemId }) => {
+        if (!modelReady()) throw new Error('请在「大模型配置」中保存并测试当前模型');
+        queue.retryAi(itemId); worker.wake(); notify(); return null;
       },
-      retryAi: ({ itemId }) => { queue.retryAi(itemId); worker.wake(); notify(); return null; },
     });
     items.cleanup();
     // 网络请求不阻塞工作台启动，窗口关闭也不会停止后台定时采集。
@@ -121,9 +109,8 @@ export default {
     return () => {
       disposed = true;
       clearTimeout(startup); clearInterval(timer);
-      worker.dispose(); unregister();
+      worker.dispose(); unregister(); unsubscribeModels();
       for (const { controller } of active.values()) controller.abort();
-      for (const controller of modelTests) controller.abort();
       db.close();
       void closeTransport();
     };

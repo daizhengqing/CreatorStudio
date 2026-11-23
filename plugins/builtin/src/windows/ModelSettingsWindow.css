@@ -1,0 +1,18 @@
+[data-plugin="studio.models"] {
+  .model-settings { display: flex; flex-direction: column; height: 100%; font-size: 12px; color: var(--foreground); background: var(--background); }
+  .model-settings-empty { display: flex; flex-direction: column; height: 100%; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: var(--muted-foreground); }
+  .model-settings-scroll { display: flex; flex: 1; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; margin: 0; padding: 16px; border: 0; overflow: auto; }
+  .model-settings-active { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .model-settings-active select { height: 28px; border: 1px solid var(--input); border-radius: 5px; padding: 0 8px; background: var(--background); color: inherit; }
+  .model-settings-hint, .model-settings-state, .model-settings-feedback { color: var(--muted-foreground); font-size: 11px; overflow-wrap: anywhere; }
+  .model-settings-profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(246px, 1fr)); gap: 12px; }
+  .model-settings-profile { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin: 0; padding: 9px 12px 12px; border: 1px solid var(--border); border-radius: 6px; }
+  .model-settings-profile legend { padding: 0 4px; font-weight: 600; }
+  .model-settings-profile > button { align-self: flex-start; }
+  .model-settings-state { display: flex; align-items: center; gap: 4px; }
+  .model-settings-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .model-settings-key { display: flex; align-items: center; gap: 6px; }
+  .model-settings-key input { min-width: 0; }
+  .model-settings-error { color: var(--destructive); }
+  .model-settings-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 16px; border-top: 1px solid var(--border); }
+}
