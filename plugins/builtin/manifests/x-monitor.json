@@ -1,0 +1,20 @@
+{
+  "id": "studio.x-monitor",
+  "name": "X Monitor",
+  "version": "1.0.0",
+  "sdkVersion": 1,
+  "frontend": "frontend.js",
+  "backend": "backend.mjs",
+  "autoStartBackend": true,
+  "styles": ["style.css"],
+  "windows": [{
+    "id": "main",
+    "title": "X Monitor",
+    "singleton": true,
+    "width": 960,
+    "height": 720,
+    "minWidth": 580,
+    "minHeight": 430,
+    "toolbar": "X Monitor"
+  }]
+}

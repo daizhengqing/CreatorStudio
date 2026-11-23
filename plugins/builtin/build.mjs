@@ -4,7 +4,9 @@ import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-for (const name of ['assets', 'downloads', 'editor', 'inspector', 'exports', 'models', 'trends']) {
+const backendFiles = { trends: ['NOTICE.md'], 'x-monitor': ['bridge.py', 'requirements.txt'] };
+
+for (const name of ['assets', 'downloads', 'editor', 'inspector', 'exports', 'models', 'trends', 'x-monitor']) {
   const manifest = JSON.parse(await readFile(new URL(`./manifests/${name}.json`, import.meta.url), 'utf8'));
   const outDir = join(import.meta.dirname, 'dist', manifest.id);
   await build({
@@ -22,12 +24,14 @@ for (const name of ['assets', 'downloads', 'editor', 'inspector', 'exports', 'mo
       configFile: false, root: import.meta.dirname,
       ssr: { noExternal: true, external: ['better-sqlite3'] },
       build: {
-        ssr: join(import.meta.dirname, 'src/trends/server/index.ts'),
+        ssr: join(import.meta.dirname, 'src', name, 'server/index.ts'),
         outDir, emptyOutDir: false, target: 'node22', minify: false,
         rollupOptions: { external: ['better-sqlite3', /^node:/], output: { entryFileNames: 'backend.mjs', inlineDynamicImports: true } },
       },
     });
-    await copyFile(join(import.meta.dirname, 'src/trends/server/NOTICE.md'), join(outDir, 'NOTICE.md'));
+    for (const file of backendFiles[name] ?? []) {
+      await copyFile(join(import.meta.dirname, 'src', name, 'server', file), join(outDir, file));
+    }
   }
   await writeFile(join(outDir, 'plugin.json'), JSON.stringify(manifest, null, 2));
 }

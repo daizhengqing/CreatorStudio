@@ -210,6 +210,33 @@ await sdk.events.emit('example.asset-notes.saved', { assetId, note: '新笔记' 
 
 内置通知为 `media.assets.changed`、`media.downloads.changed`、`media.exports.changed`，负载均为 `null`。SSE 首次连接及重连时宿主触发三类刷新通知，插件据此重新读取权威状态。
 
+## X Monitor 数据接口
+
+通过浏览器的 `sdk.plugins` 或后端的 `context.plugins` 创建客户端。接口读取本地采集数据，X Monitor 窗口关闭时仍可调用。
+
+```ts
+import { X_MONITOR_PLUGIN_ID, X_MONITOR_TWEETS_CHANGED } from '@creator-studio/plugin-sdk/x-monitor';
+import type { XMonitorReadApi, XMonitorTweetsChanged } from '@creator-studio/plugin-sdk/x-monitor';
+
+const monitor = sdk.plugins.client<XMonitorReadApi>(X_MONITOR_PLUGIN_ID);
+const refresh = () => monitor.call('listTweets', { hasMedia: true, limit: 20 });
+const firstPage = await refresh();
+console.log(firstPage.items);
+const unsubscribe = sdk.events.subscribe<XMonitorTweetsChanged>(X_MONITOR_TWEETS_CHANGED, ({ targetId }) => {
+  void refresh().then(page => console.log(targetId, page.items));
+});
+```
+
+| 方法 | 输入 | 返回 |
+| --- | --- | --- |
+| `listTargets` | `null` | 监控账号（含已移除账号）、间隔和采集状态 |
+| `listTweets` | 可选 `targetId`、`q`、`kind`、`hasMedia`、`from`、`to`、`cursor`、`limit` | `{ items, nextCursor }`，按发布时间倒序 |
+| `getTweet` | `{ id }` | 对应推文，查询不到时返回 `null` |
+
+`kind` 可选 `original`、`quote`、`repost`。时间以 Unix 毫秒计，查询包含 `from`，截止到 `to` 之前。用户和推文 ID 使用字符串。默认每页 30 条，最多 100 条。继续分页时保留筛选条件，并传入上页的 `nextCursor`。游标为 `null` 时已到最后一页。
+
+`studio.x-monitor.tweets.changed` 在写入新推文或推文内容变化后发送，负载为 `{ targetId }`。窗口重新连接 SSE 时，通过 `studio.connection.open` 重新读取当前列表。
+
 ## 开发与验收
 
 ```sh

@@ -7,6 +7,7 @@
 - `@creator-studio/plugin-sdk/server`：`BackendPlugin`、`ServerContext`。
 - 后端的 `ServerContext.dataDirectory` 是宿主创建的插件专属持久化目录，适合存放插件自己的数据库或文件。
 - `@creator-studio/plugin-sdk/runtime`：宿主装配所用的注册表、事件总线和生命周期工具。
+- `@creator-studio/plugin-sdk/x-monitor`：X Monitor 的推文、监控账号、查询和事件契约。
 
 前端从宿主收到 SDK，无需自行连接服务：
 
