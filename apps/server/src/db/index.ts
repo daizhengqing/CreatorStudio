@@ -40,9 +40,4 @@ UPDATE download_tasks SET status='failed', error='程序已重启，请重新创
 UPDATE export_tasks SET status='failed', error='程序已重启，请重新导出' WHERE status='running' OR status='queued';
 `);
 
-// 给已有本地数据库补齐下载预览字段。
-const downloadColumns = sqlite.prepare('PRAGMA table_info(download_tasks)').all() as Array<{ name: string }>;
-if (!downloadColumns.some(column => column.name === 'thumbnail_url')) sqlite.exec('ALTER TABLE download_tasks ADD COLUMN thumbnail_url TEXT');
-if (!downloadColumns.some(column => column.name === 'resolution')) sqlite.exec('ALTER TABLE download_tasks ADD COLUMN resolution INTEGER');
-
 export const db = drizzle(sqlite, { schema });

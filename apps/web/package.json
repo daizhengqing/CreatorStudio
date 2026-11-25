@@ -9,13 +9,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@creator-studio/contracts": "workspace:*",
+    "@creator-studio/ui": "workspace:*",
+    "@shadcn/react": "0.3.1",
     "lucide-react": "^0.468.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-rnd": "^10.5.2",
-    "zustand": "^5.0.3",
-    "@creator-studio/plugin-sdk": "workspace:*",
-    "@creator-studio/ui": "workspace:*"
+    "react-markdown": "10.1.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.3",

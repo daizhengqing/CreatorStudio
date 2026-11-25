@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CreatorStudio 本地运行架构",
+    "locale": "zh-CN",
+    "output": ".archify/architecture-creator-agent-20261124-092835/creator-agent.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "creator", "type": "external", "icon": "person", "label": "创作者", "pos": [40, 52], "size": [90, 62] },
+    { "id": "web", "type": "frontend", "label": "本地网页", "sublabel": "对话 · 任务 · 预览", "pos": [235, 52], "size": [133, 62] },
+    { "id": "agent", "type": "backend", "label": "Creator Agent", "sublabel": "Pi 会话与工具调用", "pos": [505, 52], "size": [158, 62] },
+    { "id": "harness", "type": "backend", "label": "领域服务", "sublabel": "媒体 · 热点 · X", "pos": [833, 52], "size": [148, 62] },
+    { "id": "model", "type": "external", "label": "本地或远程模型", "sublabel": "Chat Completions", "pos": [235, 239], "size": [133, 62] },
+    { "id": "sessions", "type": "database", "label": "Pi 会话历史", "sublabel": "本机 JSONL", "pos": [505, 239], "size": [158, 62] },
+    { "id": "data", "type": "database", "label": "素材与任务数据", "sublabel": "SQLite 和媒体文件", "pos": [833, 239], "size": [148, 62] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Fastify 本机服务", "wraps": ["agent", "harness"] }
+  ],
+  "connections": [
+    { "id": "give-instructions", "from": "creator", "to": "web", "label": "创作指令", "variant": "emphasis" },
+    { "id": "web-session", "from": "web", "to": "agent", "label": "HTTP 和 SSE", "variant": "emphasis" },
+    { "id": "tool-call", "from": "agent", "to": "harness", "label": "调用领域工具", "variant": "emphasis" },
+    { "id": "model-stream", "from": "agent", "to": "model", "label": "流式推理" },
+    { "id": "persist-history", "from": "agent", "to": "sessions", "label": "保存会话" },
+    { "id": "persist-domain", "from": "harness", "to": "data", "label": "读写结果" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "运行与恢复", "items": ["网页重连时从当前会话获取快照。", "已提交的媒体任务独立记录状态。"] },
+    { "dot": "emerald", "title": "后台采集", "items": ["热点与 X 由各自的调度器刷新。", "模型与登录凭据在网页设置中管理。"] }
+  ]
+}

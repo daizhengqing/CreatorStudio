@@ -1,11 +1,11 @@
-import type { ModelCompletionInput } from '@creator-studio/plugin-sdk';
+import type { ModelCompletionInput } from '@creator-studio/contracts';
 import { fetch, ProxyAgent } from 'undici';
 
-type Connection = { baseUrl: string; model: string; apiKey: string; proxyUrl: string; timeoutMs: number };
+export type ModelConnection = { baseUrl: string; model: string; apiKey: string; proxyUrl: string; timeoutMs: number };
 const proxies = new Map<string, ProxyAgent>();
 const retryDelay = 60_000;
 
-function proxyFor(baseUrl: string, proxyUrl: string) {
+export function modelProxy(baseUrl: string, proxyUrl: string) {
   if (!proxyUrl) return undefined;
   const host = new URL(baseUrl).hostname.replace(/^\[|\]$/g, '');
   if (host === 'localhost' || host.endsWith('.localhost') || host === '::1' || /^127(?:\.\d+){3}$/.test(host) || /^::ffff:7f[\da-f]{2}:/.test(host)) return undefined;
@@ -28,7 +28,7 @@ function retryAfter(header: string | null): number {
   return Number.isFinite(delay) ? Math.max(retryDelay, delay) : retryDelay;
 }
 
-export async function requestModel(connection: Connection, input: ModelCompletionInput, signal?: AbortSignal): Promise<string> {
+export async function requestModel(connection: ModelConnection, input: ModelCompletionInput, signal?: AbortSignal): Promise<string> {
   const { baseUrl, model, apiKey, proxyUrl, timeoutMs } = connection;
   if (!baseUrl || !model) throw new Error('请填写模型 API 根地址和模型名称');
   const headers: Record<string, string> = { 'content-type': 'application/json', accept: 'application/json' };
@@ -38,7 +38,7 @@ export async function requestModel(connection: Connection, input: ModelCompletio
   let body: string;
   try {
     response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST', headers, dispatcher: proxyFor(baseUrl, proxyUrl),
+      method: 'POST', headers, dispatcher: modelProxy(baseUrl, proxyUrl),
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       body: JSON.stringify({ model, messages: input.messages, stream: false, ...(input.json ? { response_format: { type: 'json_object' } } : {}) }),
     });

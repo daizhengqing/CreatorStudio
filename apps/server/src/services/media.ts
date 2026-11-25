@@ -1,11 +1,11 @@
+import { and, desc, eq, like } from 'drizzle-orm';
 import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { extname, join, basename } from 'node:path';
-import type { Asset, AssetSource, AssetType } from '@creator-studio/plugin-sdk';
+import type { Asset, AssetSource, AssetType } from '@creator-studio/contracts';
 import { DIRS, FFMPEG, FFPROBE } from '../config.js';
 import { db } from '../db/index.js';
 import { assets } from '../db/schema.js';
-import { publish } from './events.js';
 
 const supported: Record<string, { type: AssetType; mime: string }> = {
   '.mp4': { type: 'video', mime: 'video/mp4' },
@@ -26,7 +26,6 @@ export function formatForFile(filename: string) {
   return supported[extname(filename).toLowerCase()] ?? null;
 }
 export function folderFor(type: AssetType): string { return type === 'video' ? DIRS.videos : type === 'audio' ? DIRS.audio : DIRS.images; }
-export function safeExtension(filename: string): string { return extname(filename).toLowerCase(); }
 export function resolveMediaPath(row: { type: string; relativePath: string }): string {
   if (row.relativePath !== basename(row.relativePath)) throw new Error('Invalid stored file path');
   return join(folderFor(row.type as AssetType), row.relativePath);
@@ -72,9 +71,8 @@ export async function registerLocalFile(input: {
     const thumbnailPath = join(DIRS.thumbs, `${input.id}.jpg`);
     // Best effort; thumbnail generation must never block asset import.
     void runAndCapture(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', '-ss', '00:00:00.5', '-i', input.path, '-frames:v', '1', '-vf', 'scale=400:-2', thumbnailPath])
-      .then(() => publish('assets')).catch(() => undefined);
+      .catch(() => undefined);
   }
-  publish('assets');
 }
 
 export function toAsset(row: typeof assets.$inferSelect): Asset {
@@ -85,4 +83,16 @@ export function toAsset(row: typeof assets.$inferSelect): Asset {
     createdAt: row.createdAt, streamUrl: `/api/assets/${row.id}/stream`,
     thumbnailUrl: row.type === 'image' ? `/api/assets/${row.id}/stream` : row.type === 'video' ? `/api/assets/${row.id}/thumbnail` : null,
   };
+}
+
+export function listAssets({ search, type, limit }: { search?: string; type?: AssetType; limit?: number }): Asset[] {
+  return db.select().from(assets).where(and(
+    type ? eq(assets.type, type) : undefined,
+    search ? like(assets.name, `%${search}%`) : undefined,
+  )).orderBy(desc(assets.createdAt)).limit(limit ?? 20).all().map(toAsset);
+}
+
+export function getAsset(id: string): Asset | undefined {
+  const row = db.select().from(assets).where(eq(assets.id, id)).get();
+  return row ? toAsset(row) : undefined;
 }

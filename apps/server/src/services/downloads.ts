@@ -4,12 +4,11 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { desc, eq } from 'drizzle-orm';
-import type { AssetSource, DownloadPreview, DownloadTask } from '@creator-studio/plugin-sdk';
+import type { AssetSource, DownloadPreview, DownloadTask } from '@creator-studio/contracts';
 import { DIRS, ytDlpBin, YT_DLP_COOKIES_BROWSER } from '../config.js';
 import { db } from '../db/index.js';
 import { downloadTasks } from '../db/schema.js';
 import { formatForFile, registerLocalFile, folderFor } from './media.js';
-import { publish } from './events.js';
 
 const allowed: Array<{ host: string; source: AssetSource }> = [
   { host: 'youtube.com', source: 'youtube' }, { host: 'youtu.be', source: 'youtube' },
@@ -49,18 +48,19 @@ function ytDlpOptions(platform: AssetSource): string[] {
   ];
 }
 
-export async function previewDownload(input: string): Promise<DownloadPreview> {
+export async function previewDownload(input: string, signal?: AbortSignal): Promise<DownloadPreview> {
   const target = parseDownloadInput(input);
   if (!target) throw new Error('请粘贴 B站、抖音或 YouTube 的 HTTPS 链接或分享文案');
   let output: string;
   try {
     const result = await execFileAsync(ytDlpBin(), [
       ...ytDlpOptions(target.platform), '--dump-single-json', '--simulate', '--', target.url,
-    ], { windowsHide: true, timeout: 60_000, maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' });
+    ], { windowsHide: true, timeout: 60_000, maxBuffer: 10 * 1024 * 1024, encoding: 'utf8', signal });
     output = result.stdout;
   } catch (error) {
+    signal?.throwIfAborted();
     const failure = error as Error & { code?: string; stderr?: string };
-    if (failure.code === 'ENOENT') throw new Error('未找到 yt-dlp，请运行 scripts/init.cmd 安装下载依赖');
+    if (failure.code === 'ENOENT') throw new Error('未找到 yt-dlp，请安装或设置 YT_DLP_BIN');
     throw new Error(`解析失败：${(failure.stderr?.trim() || failure.message).slice(-900)}`);
   }
 
@@ -101,8 +101,13 @@ function asDownloadTask(row: typeof downloadTasks.$inferSelect): DownloadTask {
     error: row.error, assetId: row.assetId, createdAt: row.createdAt,
   };
 }
-export function listDownloads(): DownloadTask[] {
-  return db.select().from(downloadTasks).orderBy(desc(downloadTasks.createdAt)).all().map(asDownloadTask);
+export function listDownloads(limit = 20): DownloadTask[] {
+  return db.select().from(downloadTasks).orderBy(desc(downloadTasks.createdAt)).limit(limit).all().map(asDownloadTask);
+}
+
+export function getDownload(id: string): DownloadTask | undefined {
+  const row = db.select().from(downloadTasks).where(eq(downloadTasks.id, id)).get();
+  return row ? asDownloadTask(row) : undefined;
 }
 
 let running = false;
@@ -122,7 +127,6 @@ export function createDownload(previewId: string, resolution: number | null): Do
   db.insert(downloadTasks).values(row).run();
   previews.delete(previewId);
   waiting.push(id);
-  publish('downloads');
   void processQueue();
   return asDownloadTask(row);
 }
@@ -151,7 +155,6 @@ export function cancelDownload(id: string): DownloadTask {
     if (active.child) stopProcess(active.child);
   }
   db.update(downloadTasks).set({ status: 'cancelled' }).where(eq(downloadTasks.id, id)).run();
-  publish('downloads');
   return asDownloadTask({ ...row, status: 'cancelled' });
 }
 
@@ -160,7 +163,6 @@ export function deleteDownload(id: string): void {
   if (!row) throw new Error('下载任务不存在');
   if (row.status === 'queued' || row.status === 'running') throw new Error('请先停止下载，再删除任务记录');
   db.delete(downloadTasks).where(eq(downloadTasks.id, id)).run();
-  publish('downloads');
 }
 
 async function processQueue(): Promise<void> {
@@ -197,7 +199,7 @@ function executeDownload(task: DownloadTask, run: ActiveDownload, onProgress: (n
     child.stdout.on('data', consume);
     child.stderr.on('data', consume);
     child.on('error', err => reject('code' in err && err.code === 'ENOENT'
-      ? new Error('未找到 yt-dlp，请运行 scripts/init.cmd 安装下载依赖') : err));
+      ? new Error('未找到 yt-dlp，请安装或设置 YT_DLP_BIN') : err));
     child.on('close', code => {
       run.child = null;
       if (run.controller.signal.aborted) return reject(new Error('下载已停止'));
@@ -229,7 +231,6 @@ async function performDownload(id: string): Promise<void> {
   const run: ActiveDownload = { id, controller: new AbortController(), child: null };
   active = run;
   db.update(downloadTasks).set({ status: 'running' }).where(eq(downloadTasks.id, id)).run();
-  publish('downloads');
   let movedPath: string | null = null;
   let registered = false;
   try {
@@ -238,7 +239,6 @@ async function performDownload(id: string): Promise<void> {
       if (run.controller.signal.aborted || progress <= lastProgress) return;
       lastProgress = progress;
       db.update(downloadTasks).set({ progress }).where(eq(downloadTasks.id, id)).run();
-      publish('downloads');
     });
     run.controller.signal.throwIfAborted();
     const file = readdirSync(DIRS.videos).find(name => name.startsWith(`${id}.`) && formatForFile(name) && !name.endsWith('.part'));
@@ -267,6 +267,5 @@ async function performDownload(id: string): Promise<void> {
     } else db.update(downloadTasks).set({ status: 'failed', error: `${err instanceof Error ? err.message.slice(0, 1100) : '下载失败'}${cleanupError}` }).where(eq(downloadTasks.id, id)).run();
   } finally {
     active = null;
-    publish('downloads');
   }
 }

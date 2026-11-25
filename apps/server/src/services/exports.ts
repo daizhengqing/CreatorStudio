@@ -3,17 +3,36 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { desc, eq } from 'drizzle-orm';
-import type { ExportRequest, ExportTask } from '@creator-studio/plugin-sdk';
+import type { ExportRequest, ExportTask } from '@creator-studio/contracts';
 import { DIRS, FFMPEG } from '../config.js';
 import { db } from '../db/index.js';
 import { assets, exportTasks } from '../db/schema.js';
 import { resolveMediaPath } from './media.js';
-import { publish } from './events.js';
 
-export function listExports(): ExportTask[] {
-  return db.select().from(exportTasks).orderBy(desc(exportTasks.createdAt)).all().map(row => ({
-    ...row, status: row.status as ExportTask['status'],
-  }));
+function toExportTask({ outputFile, ...row }: typeof exportTasks.$inferSelect): ExportTask {
+  return {
+    ...row,
+    status: row.status as ExportTask['status'],
+    playbackUrl: outputFile && row.status === 'completed' ? `/api/exports/${row.id}/file` : null,
+  };
+}
+
+export function listExports(limit = 20): ExportTask[] {
+  return db.select().from(exportTasks).orderBy(desc(exportTasks.createdAt)).limit(limit).all().map(toExportTask);
+}
+
+function exportRow(id: string) {
+  return db.select().from(exportTasks).where(eq(exportTasks.id, id)).get();
+}
+
+export function getExport(id: string): ExportTask | undefined {
+  const row = exportRow(id);
+  return row ? toExportTask(row) : undefined;
+}
+
+export function getExportPath(id: string): string | null {
+  const row = exportRow(id);
+  return row?.status === 'completed' ? row.outputFile : null;
 }
 
 const activeQueue: Array<{ id: string; request: ExportRequest }> = [];
@@ -32,9 +51,8 @@ export function enqueueExport(request: ExportRequest): ExportTask {
   const task = { id, assetId: request.assetId, status: 'queued' as const, progress: 0, outputFile: null, error: null, createdAt: Date.now() };
   db.insert(exportTasks).values(task).run();
   activeQueue.push({ id, request });
-  publish('exports');
   void processQueue();
-  return task;
+  return toExportTask(task);
 }
 
 async function processQueue(): Promise<void> {
@@ -54,7 +72,6 @@ const aspectSizes: Record<Exclude<ExportRequest['aspect'], 'original'>, [number,
 
 async function render(id: string, req: ExportRequest): Promise<void> {
   db.update(exportTasks).set({ status: 'running' }).where(eq(exportTasks.id, id)).run();
-  publish('exports');
   const output = join(DIRS.exports, `${id}.mp4`);
   try {
     const asset = db.select().from(assets).where(eq(assets.id, req.assetId)).get();
@@ -95,7 +112,6 @@ async function render(id: string, req: ExportRequest): Promise<void> {
           if (Number.isFinite(progress) && progress !== last) {
             last = progress;
             db.update(exportTasks).set({ progress }).where(eq(exportTasks.id, id)).run();
-            publish('exports');
           }
         }
       });
@@ -108,5 +124,4 @@ async function render(id: string, req: ExportRequest): Promise<void> {
     if (existsSync(output)) unlinkSync(output);
     db.update(exportTasks).set({ status: 'failed', error: err instanceof Error ? err.message.slice(0, 1200) : '导出失败' }).where(eq(exportTasks.id, id)).run();
   }
-  publish('exports');
 }

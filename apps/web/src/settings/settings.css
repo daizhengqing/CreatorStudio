@@ -1,0 +1,65 @@
+/* 独立设置页面 */
+.settings-page { flex: 1; display: flex; height: 100%; min-width: 0; background: var(--surface); }
+.settings-sidebar {
+  width: 220px; flex-shrink: 0; height: 100%; border-right: 1px solid var(--border);
+  padding: 20px 10px 16px 14px; display: flex; flex-direction: column; background: var(--sidebar-bg);
+}
+.settings-sidebar-header { padding: 0 8px 16px; }
+.settings-sidebar-title { font-size: 16px; font-weight: 650; margin: 0; }
+.settings-nav-list { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.settings-nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px;
+  font-size: 13px; font-weight: 500; border-radius: 6px; text-align: left;
+  color: var(--muted-foreground); transition: all 0.12s;
+}
+.settings-nav-item:hover { background: var(--muted); color: var(--foreground); }
+.settings-nav-item.active { background: var(--border); color: var(--foreground); font-weight: 600; }
+.settings-sidebar-footer { padding-top: 12px; border-top: 1px solid var(--border); }
+.settings-back-btn {
+  display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500;
+  padding: 6px 10px; border-radius: 6px; color: var(--muted-foreground);
+}
+.settings-back-btn:hover { background: var(--muted); color: var(--foreground); }
+
+.settings-main-pane { flex: 1; overflow-y: auto; padding: 36px 44px; }
+.settings-pane-header { margin-bottom: 24px; }
+.settings-pane-title { font-size: 26px; font-weight: 700; margin: 0; }
+.settings-pane-content { max-width: 660px; }
+.settings-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 24px; display: flex; flex-direction: column; gap: 16px;
+}
+.settings-field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 550; }
+.tooltip-trigger { color: var(--muted-foreground); cursor: help; }
+.card-footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+.save-feedback { font-size: 12px; color: #16a34a; }
+.save-apply-btn {
+  background: #18181b; color: #ffffff; font-size: 13px; font-weight: 500;
+  height: 34px; padding: 0 16px; border-radius: 6px;
+}
+[data-theme="dark"] .save-apply-btn { background: #fafafa; color: #18181b; }
+.empty-card { color: var(--muted-foreground); font-size: 13px; padding: 32px 24px; text-align: center; }
+
+/* 兼容现有子设置表单在独立页的样式 */
+.settings-form, .settings-fields { display: flex; flex-direction: column; gap: 14px; }
+.settings-field { display: flex; flex-direction: column; gap: 6px; }
+.settings-field > span { font-size: 13px; font-weight: 550; }
+.settings-field small { font-size: 12px; color: var(--muted-foreground); }
+.settings-field input, .settings-field select {
+  height: 34px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border);
+  padding: 0 10px; background: var(--card); color: var(--foreground);
+}
+.settings-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.model-profiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.model-profile {
+  display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; background: var(--card);
+}
+.model-profile legend { font-weight: 600; font-size: 13px; padding: 0 6px; }
+.check-list { font-size: 11px; color: var(--muted-foreground); display: flex; flex-direction: column; gap: 3px; }
+.account-list { display: flex; flex-direction: column; gap: 6px; }
+.account-list li {
+  display: flex; justify-content: space-between; align-items: center; padding: 6px 10px;
+  border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+}

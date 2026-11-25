@@ -1,204 +1,85 @@
-# Media Studio
+# CreatorStudio
 
-一个**仅供个人本机使用**的媒体素材与视频剪辑工作台。
+CreatorStudio 是运行在本机浏览器里的创作 Agent。Pi 负责对话、工具调用和会话历史。CreatorStudio 提供素材、视频下载与导出、热点追踪和 X 监控，工具结果与媒体任务进度显示在对话里。
 
-- 浏览器访问，但采用前后端分离，不使用 Electron。
-- UI：**顶部 Toolbar + 自由多窗口工作区**。窗口可移动、改变大小、关闭、重新打开；自动保存布局。
-- 本地素材库：视频 / 音频 / 图片导入、预览与检索。
-- 支持通过 yt-dlp 下载授权使用的 B站 / 抖音 / YouTube 视频。
-- 热点追踪窗口：社会、国际、AI、宏观金融和加密资讯，平台热榜、选题收藏及自动中文翻译摘要。
-- X Monitor 窗口支持多个登录会话、按账号定时采集和跨窗口查询推文。
-- 使用 FFmpeg 裁剪单个视频片段、转换画幅、静音原声、合成 BGM 并导出 MP4。
-- 没有注册、登录、云端部署、团队协作或 ComfyUI 工作流。
+## 本地启动
 
-> **状态：v0.1.0 开发脚手架。** 这是一个可扩展的起点，**不是完整的第一阶段成品**。当前编辑器只支持单片段的时间范围裁剪和基础导出；多片段拖拽剪辑、切割、非线性时间轴、波形精准预览、完整撤销重做等在后续里程碑实现。详见 [实施计划](docs/PHASE1_PLAN.md)。
-
-## 快速开始
-
-需要：Node.js 22+、pnpm 10+；导出需要 `ffmpeg`/`ffprobe`，跨平台下载需要 `yt-dlp`。
-
-macOS 示例：
+安装 Node.js 22.19 或更新版本和 pnpm 10 后，从项目根目录启动开发服务。
 
 ```bash
-brew install ffmpeg yt-dlp
-npm install -g pnpm@10.9.0
-pnpm install
 pnpm dev
 ```
 
-Windows PowerShell 一键初始化（推荐 Node.js 22 LTS）：
+终端显示网页地址后，打开 [本地开发页面](http://127.0.0.1:8088)。Fastify API 默认运行在 3000 端口。
 
-```powershell
-.\scripts\init.cmd
-# 关闭并重开 PowerShell 后：
-pnpm.cmd dev
-```
+`pnpm dev` 和 `pnpm start` 会在启动前检查工作区依赖、FFmpeg、FFprobe、yt-dlp 和 X 监控的 Python 环境。缺失的系统工具由 Homebrew 或 WinGet 安装。X 监控会复用可用的 Python 3.10 或更新版本，并在数据目录的 `collections/x-monitor/python` 下准备依赖。准备失败时，终端会显示失败的步骤。
 
-初始化脚本检查 Node.js、npm、pnpm、FFmpeg、FFprobe、yt-dlp，并通过 winget / npm 安装缺失项，最后按锁文件安装项目依赖。它会将 `yt-dlp.exe` 放入项目的 `.tools` 目录，服务优先从此处启动，避免新安装后 PATH 未刷新的问题。PowerShell 如果禁止运行 npm 生成的 `.ps1` 命令，请使用 `pnpm.cmd`。安装后重开终端，使 pnpm 等命令的 PATH 生效。下载窗口可以粘贴视频链接或完整分享文案；先解析标题、封面和画质，再选择分辨率开始下载。下载中可停止，已结束的任务可删除记录（素材文件保留）。
+Windows 上可先运行 `.\scripts\init.cmd` 安装 Node.js、pnpm 和项目运行依赖，然后运行 `pnpm.cmd dev`。
 
-部分抖音视频需要浏览器的最新 cookies。先在浏览器中打开视频，然后在**启动服务的同一个 PowerShell 窗口**设置浏览器名称，例如：
-
-```powershell
-$env:YT_DLP_COOKIES_BROWSER = 'edge'  # 也可用 chrome、firefox
-pnpm.cmd dev
-```
-
-只有下载抖音视频时才会让 yt-dlp 读取所选浏览器的 cookies；项目不会保存 cookies。该设置不保证绕过平台对特定视频的限制。
-
-- Web 前端：**http://127.0.0.1:8088**
-- Fastify API：**http://127.0.0.1:3000**
-- 健康检查：`http://127.0.0.1:3000/api/health`
-
-两端都只绑定到 `127.0.0.1`，默认不面向局域网或公网开放。
-
-### 构建后单端口使用
+从源码构建并通过同一个 Fastify 服务访问网页。
 
 ```bash
+pnpm install --frozen-lockfile
 pnpm build
 pnpm start
 ```
 
-浏览器访问 `http://127.0.0.1:3000`。执行 `pnpm dev` 时前后端分开运行并通过 Vite 代理 API。
+打开 [CreatorStudio](http://127.0.0.1:3000)。
 
-### 数据存储
+## 配置模型
 
-默认目录 `~/MediaStudio`：
+1. 打开「设置 → 模型」，在本地模型或远程 API 中填写支持 OpenAI Chat Completions 的根地址和模型 ID。使用本地 Ollama 时，根地址可以填写 `http://127.0.0.1:11434/v1`。
+2. 按服务要求填写 API Key，选择当前使用的模型并保存。使用远程代理时，在同一页填写 HTTP(S) 代理地址。
+3. 点击「测试连接」。工具调用检查会实际跑一轮 Pi 流式调用。JSON 检查通过后，可以用此模型自动翻译和摘要热点。
+4. 在对话中发送指令，例如「查询最近导入的三个视频素材」。
 
-```text
-~/MediaStudio/
-├── database/studio.db      # SQLite；WAL 模式
-├── materials/
-│   ├── videos/
-│   ├── audio/
-│   └── images/
-├── thumbnails/
-├── exports/
-├── temp/
-├── plugins/               # 安装的第三方插件
-├── plugin-data/           # 按插件命名空间保存的数据
-└── projects/
-```
+## 在对话里工作
 
-可设置 `MEDIA_STUDIO_DATA_DIR` 环境变量更改根目录。代码仓库和媒体数据相互独立；不要把下载的视频提交到 Git。**备份时应备份整个 MediaStudio 目录（SQLite 使用 WAL 时先停止服务再复制）。**
-
-`apps/server` 启动时创建 v0.1 所需的 SQLite 表。未来增加或修改数据库字段时应先引入版本化迁移，不要直接依赖 `CREATE TABLE IF NOT EXISTS`。
-
-## 目前能做什么
-
-| 功能 | 状态 |
+| 能力 | 示例 |
 | --- | --- |
-| 顶部工具栏 / 打开与关闭窗口 | ✅ 已实现 |
-| 多窗口拖动、缩放、层级、布局保存在当前浏览器 | ✅ 已实现 |
-| 本地视频、图片、音频导入 / 展示 / 基本检索 | ✅ 已实现 |
-| B站、抖音、YouTube 通过 yt-dlp 下载到本地素材库 | ✅ 支持解析预览、分辨率选择、停止下载与删除任务记录；具体站点受平台规则、权限及 yt-dlp 状态影响 |
-| 任务进度与 SQLite 持久化 | ✅ 基础实现；中断的任务会标记失败，需要重新创建 |
-| 原视频预览、单片段入点/出点裁剪 | ✅ 基础实现 |
-| 16:9、9:16、1:1 画幅导出 / 原声静音 / BGM 合成 | ✅ 基础实现，预览不混音 |
-| 视频拆分、多片段非线性剪辑、轨道拖拽 | ⏳ 待开发 |
-| 项目持久化（时间轴文档）、历史版本/撤销重做 | ⏳ 待开发 |
-| 热点资讯流 / 平台热榜 / 选题池 | ✅ 13 个来源入口，5 分钟采集；微博需要自己的登录态 |
-| X Monitor | ✅ 自选监控账号与采集间隔，支持按天数或条数补采 |
-| 资讯自动中文翻译与摘要 | ✅ 可切换的本地和远程模型接口，需先配置并测试 |
-| 精确画幅平移、缩放、裁剪位置控制 | ⏳ 待开发 |
-| 可暂停/续传的任务与批量链接下载 | ⏳ 待开发 |
-| AI 图像 / 视频生成、ComfyUI | ❌ 第一阶段不做 |
+| 素材 | 上传图片、音频或视频，发送「列出我上传的素材和视频时长」 |
+| 下载 | 粘贴 B站、抖音或 YouTube 的可下载视频链接，发送「解析这个链接，列出画质」 |
+| 导出 | 上传视频，发送「将前 10 秒裁成竖屏，静音，导出 MP4」 |
+| 热点 | 发送「查询最近的 AI 热点，把第一条收藏为选题并附上原文链接」 |
+| X | 录入登录账号后，发送「每 15 分钟监控 @用户名，补采最新 10 条」 |
 
-## 大模型配置
+下载和导出提交后会在对话中显示任务进度，导出完成后可播放或保存 MP4。停止本轮对话不会影响已提交的任务，下载任务可通过 Agent 单独停止。
 
-1. 点击顶部工具栏的「大模型配置」，填写 API 根地址（如 `http://127.0.0.1:11434/v1`）、模型名称和 API Key。无需认证的本地服务可以留空密钥。
-2. 选择当前使用的本地模型或远程 API，保存并测试连接。接口需支持 Chat Completions 和 JSON 输出。
-3. 测试通过后，热点翻译与摘要及其他接入模型的窗口共用当前选择。远程模型可单独配置 HTTP 代理。
+在「设置 → 热点采集」可填写采集代理和微博 Cookie。微博登录态通过试采后启用。其余来源默认按五分钟间隔刷新。
 
-已有的热点模型配置会在升级后首次启动时迁移。此前共用的代理地址会分别填入远程模型代理和热点采集代理。
+项目启动时会准备 X 监控的 Python 环境。在「设置 → X 账号」可以使用自己的 X 浏览器 Cookie 或账号密码登录。Cookie 支持请求头或 JSON 格式，须包含 `auth_token` 和 `ct0`。X 监控在服务启动期间按目标间隔运行。
 
-## 热点追踪
+## 本地数据和环境变量
 
-点击工具栏的“热点”，在“资讯流、热榜、选题池”之间切换。来源每 5 分钟检查一次，设置中可查看采集状态、成功时间与最新内容时间；手动刷新不改变上游发布速度。
-
-```mermaid
-flowchart LR
-  A[RSS／平台热榜／快讯] --> B[插件后台采集]
-  B --> C[独立 SQLite 与去重]
-  C --> D[资讯流与平台热榜]
-  C --> E[本地或远程模型队列]
-  E --> D
-  D --> F[收藏选题与创作备注]
-```
-
-- 在热点设置中管理自动翻译与摘要、采集代理和信息源。采集需要代理时，可填写本机 HTTP 代理地址，例如 `http://127.0.0.1:7897`。
-- **生成范围**：只使用订阅和快讯已有文字；只有标题时仅翻译。首次同步仅自动加工最近 24 小时每源最新 20 条，之后的新消息按队列处理。模型未配置时仍可浏览原始资讯。
-- **微博**：需要你自己的浏览器登录 Cookie，保存后后台试采，通过才启用；其他来源默认启用。公开网站接口可能随源站变化而失效，失败会保留上次内容。
-- **数据**：热点数据库位于数据目录的 `plugin-data/studio.trends/trends.db`。普通资讯保留 30 天，选题及其备注、原文摘录、已有摘要长期保留；停止本机后端即停止采集。
-- **凭据**：模型 API Key 保存在 `database/studio.db`，来源 Cookie 保存在热点数据库。读取接口只返回凭据是否已配置。数据库没有额外加密，备份时按本机凭据文件保管。
-
-## X Monitor
-
-X Monitor 需要 Python 3.10 或更新版本。首次打开窗口或后台开始采集时，会在 `plugin-data/studio.x-monitor/python` 创建独立环境，通过 pip 自动安装锁定版本的依赖。后续会复用该环境。[twscrape v0.21.0](https://github.com/vladkens/twscrape/releases/tag/v0.21.0)
-
-通常直接启动工作台即可。`X_MONITOR_PYTHON` 是可选的解释器路径。指定的解释器已具备所需依赖时会直接使用，需要创建独立环境时也可用它作为基础 Python。首次安装需能访问 pip 包源，安装失败后可在窗口点击「重试」。
-
-1. 点击工具栏的 **X Monitor**，在「登录账号」添加可访问 X 的会话。Cookie 可使用请求头或 JSON，需包含 `auth_token` 和 `ct0`。密码登录使用 X 用户名、密码和邮箱，按需补充邮箱应用密码或 TOTP 密钥。
-2. 在「监控账号」输入目标的 `@用户名` 和采集间隔，选择从添加时开始、立即补采过去 N 天或立即补采最新 N 条。日期范围从添加时间向前计算，默认间隔为 5 分钟。
-3. 在「推文」浏览所有账号的主页推文，按账号、关键词、日期、类型和有无媒体筛选。
-
-后台随 CreatorStudio 服务运行。推文和进度保存在 `plugin-data/studio.x-monitor/x-monitor.db`，登录会话保存在同目录的 `sessions/accounts.db`。密码、邮箱应用密码和 TOTP 密钥只用于当次登录。其他窗口可通过插件 SDK 读取已采集的推文。[X Monitor 数据接口](docs/PLUGINS.md#x-monitor-数据接口)
-
-## 技术栈
-
-- **前端**：React 19、TypeScript、Vite 6、Tailwind CSS 4、shadcn/ui（Neutral）、Zustand、TanStack Query、react-rnd。
-- **后端**：Node.js、Fastify、SQLite、Drizzle ORM、FFmpeg/FFprobe、yt-dlp。
-- **基础设施**：pnpm workspace、SQLite、本地文件系统；不需要数据库服务、Docker、Redis。
-
-目前已包含 shadcn/ui 兼容的 `Button`、`Input` 组件及 `components.json` 配置。后续直接在 `apps/web` 使用 shadcn CLI 增加需要的 UI 组件；无需另行创建自定义设计系统。
-
-## monorepo
+默认数据根目录为 `~/CreatorStudio`。
 
 ```text
-creator-studio/
-├── apps/
-│   ├── web/                 # React 页面和多窗口工作区
-│   └── server/              # Fastify 路由、SQLite、yt-dlp、FFmpeg
-├── packages/plugin-sdk/    # 可独立分发的插件契约和媒体类型
-├── packages/ui/            # 宿主与内置插件的共享 UI 源码
-├── plugins/builtin/        # 独立构建的内置窗口插件
-├── examples/asset-notes/   # 原生 DOM + Node.js 完整插件示例
-├── docs/                   # 第一阶段实施计划 / 架构 / API
-├── scripts/
-├── AGENTS.md               # Codex 等代码代理开发规范
-├── package.json
-└── pnpm-workspace.yaml
+~/CreatorStudio/
+├── agent/sessions/       Pi 会话历史
+├── collections/          热点库、X 监控库及登录会话
+├── database/studio.db    素材、任务及模型设置
+├── materials/            已入库的原始媒体
+├── thumbnails/
+└── exports/
 ```
 
-## 设计约束
+在启动命令的同一个终端中设置环境变量。
 
-1. UI 是**工具**而非 SaaS 平台：无左侧固定运营导航、无头像、无统计仪表盘、无用户体系。
-2. 顶部 Header 是工具栏；其余区域都是可移动、可缩放、可重叠的窗口工作台。
-3. 所有媒体均本地保存；数据库只管理元数据和任务，不存视频二进制。
-4. 服务只监听回环地址；不允许任意 URL 下载（现仅允许指定三类平台 HTTPS URL）。
-5. 视频修改应采用**非破坏性编辑**；仅在导出时调用 FFmpeg 编码。
-6. 在补齐时间轴多轨功能前，不要宣称编辑器已具备完整的非线性剪辑能力。
+| 变量 | 用途 |
+| --- | --- |
+| `CREATOR_STUDIO_DATA_DIR` | 选择数据根目录。例如 macOS 上用 `CREATOR_STUDIO_DATA_DIR="$PWD/data" pnpm dev` 从空目录启动 |
+| `PORT` | 设置本机 API 端口，默认为 `3000` |
+| `FFMPEG_BIN`、`FFPROBE_BIN`、`YT_DLP_BIN` | 指定媒体工具的可执行文件 |
+| `YT_DLP_COOKIES_BROWSER` | 抖音下载需要登录态时，指定自己使用的浏览器，例如 `edge` |
+| `X_MONITOR_PYTHON` | 指定 X Monitor 使用的 Python 解释器 |
 
-## 常见问题
+备份时先停止服务，再复制整个数据根目录。模型密钥和采集登录态与其他本机数据一起备份。
 
-- **安装 `better-sqlite3` 失败**：它是原生扩展；请确保 Node 使用常见受支持的版本，必要时安装本机编译工具并重装依赖。
-- **下载报未找到 `yt-dlp`**：Windows 重新运行 `.\scripts\init.cmd` 并重启服务；也可设置 `YT_DLP_BIN` 为可执行文件的完整路径。
-- **抖音提示需要新鲜 cookies**：按上面的方式设置 `YT_DLP_COOKIES_BROWSER`，在对应浏览器打开并刷新视频，然后重试；仍失败可能是平台或 yt-dlp 解析限制。
-- **导出报 `spawn ffmpeg ENOENT`**：安装 FFmpeg 并加入 PATH，或设置 `FFMPEG_BIN`。
-- **视频封面未生成**：检查 FFmpeg 是否安装，以及视频格式是否受支持；封面是异步生成的。
-- **素材文件很大**：当前 Web 上传暂限制单文件 4 GB，后续需要增加直接索引本地文件的能力，避免重复拷贝。
-- **下载某个平台失败**：更新 `yt-dlp`；平台的反爬策略、版权限制、认证需求和地域限制可能导致失败。仅下载你有权获取和使用的内容。
+## 开发参考
 
-## 插件扩展
-
-工作台采用可信插件模型，前端通过统一 SDK 接入，后端可注册自己的业务接口。内置窗口作为独立插件加载。插件放入数据目录的 `plugins/<pluginId>` 后重启生效，安装插件无需重新构建宿主。
-
-从 [插件开发与安装指南](docs/PLUGINS.md) 开始；`examples/asset-notes` 演示独立构建、窗口通信、后端方法、存储及事件同步。`pnpm dev` 和 `pnpm build` 会先构建 SDK 和内置插件。
-
-## 开发文档
-
-- [确认过的多窗口工作区原型](docs/workspace-prototype.png)
-- [第一阶段实施计划](docs/PHASE1_PLAN.md)
-- [技术架构](docs/ARCHITECTURE.md)
-- [插件开发与安装](docs/PLUGINS.md)
-- [API 说明](docs/API.md)
-- [代码代理规则](AGENTS.md)
+- [运行架构](docs/ARCHITECTURE.md)
+- [本地 API](docs/API.md)
+- `pnpm typecheck` 检查 TypeScript。
+- `pnpm build` 构建网页、后端和 X 运行文件。
+- `pnpm run doctor` 查看 Node.js、媒体工具和 X 监控环境的检查结果。
+- `pnpm run setup` 准备运行环境，适合在启动服务前单独执行。

@@ -4,16 +4,16 @@
   "private": true,
   "packageManager": "pnpm@10.9.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.19.0"
   },
   "scripts": {
-    "dev": "pnpm build:plugins && pnpm --parallel --filter @creator-studio/web --filter @creator-studio/server dev",
-    "build": "pnpm build:plugins && pnpm --filter @creator-studio/web build && pnpm --filter @creator-studio/server build",
-    "typecheck": "pnpm --filter @creator-studio/plugin-sdk build && pnpm -r typecheck",
-    "start": "pnpm --filter @creator-studio/server start",
+    "dev": "node scripts/runtime.mjs dev",
+    "build": "pnpm build:contracts && pnpm --filter @creator-studio/web build && pnpm --filter @creator-studio/server build",
+    "typecheck": "pnpm build:contracts && pnpm -r typecheck",
+    "start": "node scripts/runtime.mjs start",
     "clean": "node scripts/clean.mjs",
-    "doctor": "node scripts/check-prerequisites.mjs",
-    "build:plugins": "pnpm --filter @creator-studio/plugin-sdk build && pnpm --filter @creator-studio/builtin-plugins build",
-    "sdk:pack": "pnpm --filter @creator-studio/plugin-sdk build && pnpm -C packages/plugin-sdk pack --pack-destination ../../artifacts"
+    "doctor": "node scripts/runtime.mjs doctor",
+    "setup": "node scripts/runtime.mjs setup",
+    "build:contracts": "pnpm --filter @creator-studio/contracts build"
   }
 }

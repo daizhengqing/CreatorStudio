@@ -1,73 +1,53 @@
-# API（v0.1.0）
+# 本地 API
 
-基础地址：本机 `http://127.0.0.1:3000`。开发期浏览器使用 `/api` 的 Vite 代理。
+下文路径相对于本机 Fastify 服务，默认地址为 `http://127.0.0.1:3000`。写入 JSON 时使用 `Content-Type: application/json`。
 
-| 方法 | 路径 | 用途 |
+## 会话
+
+| 方法与路径 | 入参 | 返回 |
 | --- | --- | --- |
-| GET | `/api/health` | 健康检查 |
-| GET | `/api/assets` | 返回全部素材元数据 |
-| POST | `/api/assets/upload` | multipart/form-data，字段 `file`，最大 4 GiB |
-| GET | `/api/assets/:id/stream` | 支持 Range 的视频/音频/图片读取 |
-| GET | `/api/assets/:id/thumbnail` | 视频 JPG 缩略图，生成前返回 404 |
-| GET | `/api/downloads` | 下载任务列表 |
-| POST | `/api/downloads/preview` | `{ "url": "https://..." }`；解析链接或分享文案，返回标题、封面、时长、可选分辨率和短期有效的 `id` |
-| POST | `/api/downloads` | `{ "previewId": "<preview-id>", "resolution": 720 }`；`resolution: null` 表示自动最高画质。旧格式 `{ "url": "https://..." }` 仍可用，按自动画质下载 |
-| POST | `/api/downloads/:id/cancel` | 停止排队或正在运行的下载 |
-| DELETE | `/api/downloads/:id` | 删除已结束的任务记录，不删除素材文件 |
-| GET | `/api/exports` | 导出任务列表 |
-| POST | `/api/exports` | 创建基础视频导出任务 |
-| GET | `/api/exports/:id/file` | 读取已完成 MP4 |
-| GET | `/api/events` | SSE；`studio` 事件、`data: {topic, payload}`；内置主题为 `media.assets.changed` / `media.downloads.changed` / `media.exports.changed`，负载 `null` |
+| `GET /api/agent/sessions` | | 会话列表，每项包含 `id`、`title` 和 `updatedAt` |
+| `POST /api/agent/sessions` | `{"text":"查询视频素材","assetIds":[]}` | HTTP 202，`{sessionId, runId}` |
+| `POST /api/agent/sessions/:id/messages` | 同首次提交。省略 `assetIds` 时传入纯文字 | HTTP 202，`{sessionId, runId}` |
+| `GET /api/agent/sessions/:id/events` | | SSE。首帧为快照，随后是条目、文本增量、运行状态 |
+| `POST /api/agent/sessions/:id/abort` | | HTTP 204 |
 
-POST `/api/exports` 示例：
+重复向运行中的会话发送消息时返回 HTTP 409。模型未配置、文字为空或素材不存在时返回 HTTP 400。访问不存在的会话时返回 HTTP 404。
 
-```json
-{
-  "assetId": "<asset-uuid>",
-  "start": 0,
-  "end": 12.5,
-  "aspect": "9:16",
-  "mute": false,
-  "bgmAssetId": "<optional-audio-asset-uuid>",
-  "bgmVolume": 0.5
-}
-```
+每个 SSE 事件的 data 是一个 JSON 对象。快照包含 `session`、`entries` 和 `run`，可以用于恢复整个界面。
 
-`aspect`: `original` / `16:9` / `9:16` / `1:1`。
+| `type` | 字段 |
+| --- | --- |
+| `snapshot` | `snapshot` 包含已知历史与本轮状态 |
+| `entry` | `entry` 包含用户、助手或工具条目，按 `id` 更新 |
+| `text_delta` | `id` 和要追加的 `delta` |
+| `run` | `session` 和 `run`，状态为 `running`、`completed`、`failed` 或 `cancelled` |
 
-`downloadTasks` / `exportTasks` 的 `status`: `queued`, `running`, `completed`, `failed`, `cancelled`。预览 `id` 有效期 10 分钟，分辨率取自该视频实际格式；停止下载会清理临时文件。当前未实现重试端点。
+## 文件和媒体任务
 
-文件路径由后端控制；不提供通用的任意磁盘文件 API。
+| 方法与路径 | 返回 |
+| --- | --- |
+| `GET /api/assets` | 最近导入的素材 |
+| `POST /api/assets/upload` | 使用 multipart 表单字段 `file` 上传单个素材，HTTP 201 返回素材对象 |
+| `GET /api/assets/:id` | 素材详情，包括 ID、类型和 `streamUrl` |
+| `GET /api/assets/:id/stream` | 原始文件，支持字节 Range |
+| `GET /api/assets/:id/thumbnail` | 视频缩略图 |
+| `GET /api/downloads/:id` | 下载任务状态、进度和入库后的 `assetId` |
+| `GET /api/exports/:id` | 导出任务状态、进度和可用后的 `playbackUrl` |
+| `GET /api/exports/:id/file` | 已完成的 MP4，支持字节 Range |
 
-## 插件 HTTP 接口（SDK v1）
+## 设置
 
-插件通常使用 SDK，不直接拼接这些 URL。无参数的后端方法请求体为 `null`，参数和结果使用 JSON。
+模型配置通过 `GET /api/models/config` 读取，通过 `PUT /api/models/config` 保存。配置包含 `activeProfile`、`proxyUrl` 和 `profiles.local`、`profiles.remote`。每个配置填写 `baseUrl`、`model` 和可选的 `apiKey`。省略 `apiKey` 时保留已保存密钥，传入空串时清除。读取时返回 `hasKey`、`agentVerified` 和 `summaryVerified`。
 
-| 方法 | 路径 | 请求 / 返回 |
-| --- | --- | --- |
-| GET | `/api/plugins` | 返回 `{ manifest, frontendUrl?, styleUrls }[]`，包括内置和安装的插件 |
-| POST | `/api/plugins/:id/call/:method` | 请求体为方法输入；返回注册方法的结果，空结果序列化为 `null` |
-| GET | `/api/plugins/:id/storage/:key` | 返回 `{ value }`；键不存在时返回 `{}` |
-| PUT | `/api/plugins/:id/storage/:key` | 请求 `{ value: JsonValue }`；返回 `{ saved: true }` |
-| DELETE | `/api/plugins/:id/storage/:key` | 返回 `{ deleted: true }` |
-| POST | `/api/plugins/:id/events` | 请求 `{ topic, payload }`；返回 `{ emitted: true }` |
-| GET | `/plugins/:id/*` | 读取插件目录的前端模块及静态资源 |
+向 `POST /api/models/test` 提交 `{"profileId":"local"}`，返回 `agent` 和 `summary` 两项结果，每项包含 `ok` 与 `message`。
 
-`:id` 是清单中的插件标识，`:method` 是后端注册的方法名，`:key` 是存储键；各路径段使用 URL 编码。成功返回 `200`；插件 ID 不存在返回 `404`；方法不存在或插件抛出错误返回 `500`，`message` 描述具体原因。JSON 格式错误由服务返回 `400`。
-
-素材笔记示例安装后，保存一条笔记：
-
-```sh
-curl -X POST http://127.0.0.1:3000/api/plugins/example.asset-notes/call/save \
-  -H 'Content-Type: application/json' \
-  -d '{"assetId":"<asset-id>","note":"用于开场"}'
-```
-
-返回 `{"saved":true}`，同时 SSE 发出：
-
-```text
-event: studio
-data: {"topic":"example.asset-notes.saved","payload":{"assetId":"<asset-id>","note":"用于开场"}}
-```
-
-窗口实例接口只在对应浏览器页面内调用，不提供 HTTP 入口。接口列表、前后端契约和生命周期见 [插件开发指南](PLUGINS.md)。
+| 方法与路径 | 用途 |
+| --- | --- |
+| `GET /api/settings/trends` | 获取采集配置与来源状态 |
+| `PUT /api/settings/trends/proxy` | 保存 `{"proxyUrl":"http://127.0.0.1:7897"}` |
+| `PUT /api/settings/trends/weibo` | 保存并试采 `{"cookie":"…"}`，传空字符串清除 |
+| `GET /api/settings/x/runtime` | 准备并检查 X Monitor 的 Python 环境 |
+| `GET /api/settings/x/accounts` | 查看已保存的 X 账号及状态 |
+| `POST /api/settings/x/accounts` | 保存 `{username, mode:"cookie", cookie}` 或 `{username, mode:"password", password, email, emailPassword?, totpSecret?}` |
+| `DELETE /api/settings/x/accounts/:username` | 移除登录账号，返回 HTTP 204 |
