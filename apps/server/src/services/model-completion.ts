@@ -1,7 +1,7 @@
-import type { ModelCompletionInput } from '@creator-studio/contracts';
+import type { ModelCompletionInput, ModelInput } from '@creator-studio/contracts';
 import { fetch, ProxyAgent } from 'undici';
 
-export type ModelConnection = { baseUrl: string; model: string; apiKey: string; proxyUrl: string; timeoutMs: number };
+export type ModelConnection = Omit<ModelInput, 'apiKey'> & { apiKey: string; timeoutMs: number };
 const proxies = new Map<string, ProxyAgent>();
 const retryDelay = 60_000;
 
@@ -30,17 +30,34 @@ function retryAfter(header: string | null): number {
 
 export async function requestModel(connection: ModelConnection, input: ModelCompletionInput, signal?: AbortSignal): Promise<string> {
   const { baseUrl, model, apiKey, proxyUrl, timeoutMs } = connection;
-  if (!baseUrl || !model) throw new Error('请填写模型 API 根地址和模型名称');
+  const anthropic = connection.protocol === 'anthropic-messages';
   const headers: Record<string, string> = { 'content-type': 'application/json', accept: 'application/json' };
-  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  if (anthropic) {
+    headers['anthropic-version'] = '2023-06-01';
+    if (apiKey) headers['x-api-key'] = apiKey;
+  } else if (apiKey) {
+    headers.authorization = `Bearer ${apiKey}`;
+  }
+
+  // Messages 将 system 指令与对话消息分开。摘要提示词已明确要求返回 JSON。
+  const system = input.messages.filter(message => message.role === 'system').map(message => message.content).join('\n\n');
+  const payload = anthropic ? {
+    model,
+    max_tokens: 1024,
+    ...(system ? { system } : {}),
+    messages: input.messages.filter(message => message.role !== 'system'),
+  } : {
+    model, messages: input.messages, stream: false, ...(input.json ? { response_format: { type: 'json_object' } } : {}),
+  };
+
   const timeout = AbortSignal.timeout(timeoutMs);
   let response: Awaited<ReturnType<typeof fetch>>;
   let body: string;
   try {
-    response = await fetch(`${baseUrl}/chat/completions`, {
+    response = await fetch(`${baseUrl}${anthropic ? '/v1/messages' : '/chat/completions'}`, {
       method: 'POST', headers, dispatcher: modelProxy(baseUrl, proxyUrl),
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-      body: JSON.stringify({ model, messages: input.messages, stream: false, ...(input.json ? { response_format: { type: 'json_object' } } : {}) }),
+      body: JSON.stringify(payload),
     });
     body = await response.text();
   } catch {
@@ -55,8 +72,13 @@ export async function requestModel(connection: ModelConnection, input: ModelComp
     throw requestError(`模型请求被拒绝（HTTP ${response.status}），请检查模型配置和输出格式`);
   }
   try {
-    const result = JSON.parse(body) as { choices: { message: { content: unknown } }[] };
-    const content = result.choices[0]?.message.content;
+    const result = JSON.parse(body) as {
+      content?: { type: string; text?: string }[];
+      choices?: { message: { content: unknown } }[];
+    };
+    const content = anthropic
+      ? result.content?.filter(block => block.type === 'text').map(block => block.text).join('')
+      : result.choices?.[0]?.message.content;
     if (typeof content === 'string' && content.trim()) return content;
   } catch {
     throw requestError('模型服务返回的响应格式无效');

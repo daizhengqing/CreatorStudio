@@ -1,16 +1,18 @@
-import { MessageSquare, Moon, Settings, Sun } from 'lucide-react';
+import { Flame, MessageSquare, Moon, Radio, Settings, Sun } from 'lucide-react';
 import { cn } from '@creator-studio/ui/utils';
 
+export type AppView = 'chat' | 'trends' | 'x-monitor' | 'settings';
+
 type Props = {
-  currentView: 'chat' | 'settings';
-  onSelectView: (view: 'chat' | 'settings') => void;
+  currentView: AppView;
+  onSelectView: (view: AppView) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 };
 
 /**
  * 最左侧窄图标菜单栏
- * 包含主导航会话图标、暗黑模式切换和设置入口
+ * 包含会话、采集页面、主题切换和设置入口
  */
 export function IconMenu({ currentView, onSelectView, theme, onToggleTheme }: Props) {
   return (
@@ -22,9 +24,30 @@ export function IconMenu({ currentView, onSelectView, theme, onToggleTheme }: Pr
           className={cn('icon-menu-item', { active: currentView === 'chat' })}
           title="会话"
           aria-label="会话"
+          aria-current={currentView === 'chat' ? 'page' : undefined}
           onClick={() => onSelectView('chat')}
         >
           <MessageSquare size={20} />
+        </button>
+        <button
+          type="button"
+          className={cn('icon-menu-item', { active: currentView === 'trends' })}
+          title="热点采集"
+          aria-label="热点采集"
+          aria-current={currentView === 'trends' ? 'page' : undefined}
+          onClick={() => onSelectView('trends')}
+        >
+          <Flame size={20} />
+        </button>
+        <button
+          type="button"
+          className={cn('icon-menu-item', { active: currentView === 'x-monitor' })}
+          title="X 监控"
+          aria-label="X 监控"
+          aria-current={currentView === 'x-monitor' ? 'page' : undefined}
+          onClick={() => onSelectView('x-monitor')}
+        >
+          <Radio size={20} />
         </button>
       </div>
 
@@ -44,6 +67,7 @@ export function IconMenu({ currentView, onSelectView, theme, onToggleTheme }: Pr
           className={cn('icon-menu-item', { active: currentView === 'settings' })}
           title="系统设置"
           aria-label="系统设置"
+          aria-current={currentView === 'settings' ? 'page' : undefined}
           onClick={() => onSelectView('settings')}
         >
           <Settings size={20} />

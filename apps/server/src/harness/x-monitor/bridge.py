@@ -7,17 +7,14 @@ from datetime import datetime, timezone
 
 try:
     from loguru import logger
-    from twscrape import API, Account, NoAccountError, Tweet, User, parse_tweets
+    from twscrape import API, Account, NoAccountError, Tweet, models, parse_tweets
     from twscrape.account import has_required_cookies
     from twscrape.login import login
     from twscrape.utils import find_obj
+    from research import InvalidCursor, author_view, millis, post_view, research
 except ImportError:
     print('{"ok":false,"error":{"code":"runtime_missing"}}')
     sys.exit(0)
-
-
-def millis(value: datetime) -> int:
-    return int(value.timestamp() * 1000)
 
 
 def failure(code: str, **details: object) -> dict:
@@ -71,54 +68,6 @@ async def save_account(api: API, request: dict) -> dict:
     except ValueError:
         return failure("invalid_cookie")
     return {"ok": True, "result": account_view(await api.pool.get(username))}
-
-
-def author_view(user: User) -> dict:
-    return {
-        "id": user.id_str,
-        "handle": user.username,
-        "name": user.displayname,
-        "avatarUrl": user.profileImageUrl or None,
-    }
-
-
-def post_view(tweet: Tweet) -> dict:
-    media = [
-        {"kind": "image", "url": photo.url, "previewUrl": photo.url, "alt": photo.altText}
-        for photo in tweet.media.photos
-    ]
-    for video in tweet.media.videos:
-        variant = max(
-            (item for item in video.variants if item.contentType == "video/mp4"),
-            default=None,
-            key=lambda item: item.bitrate,
-        )
-        media.append({
-            "kind": "video",
-            "url": variant.url if variant else None,
-            "previewUrl": video.thumbnailUrl,
-            "alt": video.altText,
-        })
-    media.extend(
-        {"kind": "gif", "url": item.videoUrl, "previewUrl": item.thumbnailUrl, "alt": item.altText}
-        for item in tweet.media.animated
-    )
-    return {
-        "id": tweet.id_str,
-        "author": author_view(tweet.user),
-        "publishedAt": millis(tweet.date),
-        "url": tweet.url,
-        "text": tweet.rawContent,
-        "metrics": {
-            "replies": tweet.replyCount,
-            "reposts": tweet.retweetCount,
-            "quotes": tweet.quoteCount,
-            "likes": tweet.likeCount,
-            "bookmarks": tweet.bookmarkedCount,
-            "views": tweet.viewCount,
-        },
-        "media": media,
-    }
 
 
 def tweet_view(tweet: Tweet, target_id: str) -> dict:
@@ -175,12 +124,12 @@ async def timeline_page(api: API, request: dict) -> dict:
     }
 
 
-async def no_account(api: API, method: str) -> dict:
-    queue = "UserByScreenName" if method == "resolveTarget" else "UserTweets"
+async def no_account(api: API, queue: str, username: str | None = None) -> dict:
     now = datetime.now(timezone.utc)
     unlocks = [
         millis(until)
         for account in await api.pool.get_all()
+        if username is None or account.username == username
         if account.active and account.has_session
         if (until := account.locks.get(queue)) and until > now
     ]
@@ -203,18 +152,31 @@ async def dispatch(api: API, method: str, request: dict | None) -> dict:
     if method == "resolveTarget":
         user = await api.user_by_login(request["handle"])
         return {"ok": True, "result": author_view(user) if user else None}
+    if method == "research":
+        return {"ok": True, "result": await research(api, request)}
     return {"ok": True, "result": await timeline_page(api, request)}
 
 
 async def main() -> dict:
     command = json.load(sys.stdin)
     method = command["method"]
+    request = command["input"]
     api = API(sys.argv[1], raise_when_no_account=True, wait_timeout=0)
+    if method == "research":
+        # 上游解析失败时默认把完整响应转储到临时目录，实时读取只返回结构化结果。
+        models._write_dump = lambda *_: None
     try:
         timeout = 110 if method == "saveAccount" else 40
-        return await asyncio.wait_for(dispatch(api, method, command["input"]), timeout)
-    except NoAccountError:
-        return await no_account(api, method)
+        return await asyncio.wait_for(dispatch(api, method, request), timeout)
+    except NoAccountError as error:
+        if method == "research":
+            # twscrape 的 NoAccountError 仅携带包含队列名的文本。
+            queue = str(error).removeprefix("No account available for queue ")
+            return await no_account(api, queue, request.get("account"))
+        queue = "UserByScreenName" if method == "resolveTarget" else "UserTweets"
+        return await no_account(api, queue)
+    except InvalidCursor:
+        return failure("invalid_cursor")
     except asyncio.TimeoutError:
         return failure("timeout")
     except Exception:

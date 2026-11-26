@@ -5,15 +5,15 @@ import {
   Copy,
   ExternalLink,
   LoaderCircle,
-  RotateCcw,
   TriangleAlert,
 } from 'lucide-react';
 import { MessageScroller } from '@shadcn/react/message-scroller';
 import Markdown from 'react-markdown';
-import type { AgentRun, Asset, ChatEntry, ToolEntry } from '@creator-studio/contracts';
+import type { AgentRun, ChatEntry, ScheduledPost, ToolEntry } from '@creator-studio/contracts';
 import { AssetCard } from './MediaCards';
 import { ActionHistory } from './ActionHistory';
 import { useToast } from '../ui/Toast';
+import { XDraftCards } from '../ui/XDraftCards';
 
 type GroupedMessage =
   | { kind: 'user'; entry: ChatEntry & { role: 'user' } }
@@ -96,10 +96,12 @@ function CodeBlockCard({ language, code }: { language?: string; code: string }) 
 
 function AssistantMessage({
   text,
+  posts,
   durationSec,
   isStreaming,
 }: {
   text: string;
+  posts?: ScheduledPost[];
   durationSec?: number;
   isStreaming?: boolean;
 }) {
@@ -151,6 +153,8 @@ function AssistantMessage({
         {isStreaming && <span className="typing-cursor" aria-label="正在输出" />}
       </div>
 
+      {posts && <XDraftCards posts={posts} />}
+
       <div className="message-meta-footer">
         <span className="worked-time">- Worked for {durationSec ?? 3}s</span>
         <button
@@ -171,12 +175,10 @@ export function Transcript({
   entries,
   run,
   offline,
-  onReplay,
 }: {
   entries: ChatEntry[];
   run: AgentRun | null;
   offline: boolean;
-  onReplay?: (text: string, assets: Asset[]) => void;
 }) {
   const groups = groupEntries(entries);
   const isRunning = run?.status === 'running';
@@ -222,15 +224,6 @@ export function Transcript({
                           <AssetCard key={asset.id} asset={asset} />
                         ))}
                       </div>
-                      <button
-                        type="button"
-                        className="user-msg-replay"
-                        title="重新填入编辑"
-                        aria-label="重新填入编辑"
-                        onClick={() => onReplay?.(group.entry.text, group.entry.assets)}
-                      >
-                        <RotateCcw size={13} />
-                      </button>
                     </div>
                   </MessageScroller.Item>
                 );
@@ -240,6 +233,7 @@ export function Transcript({
                 <MessageScroller.Item key={group.entry.id} messageId={group.entry.id}>
                   <AssistantMessage
                     text={group.entry.text}
+                    posts={group.entry.posts}
                     durationSec={group.durationSec}
                     isStreaming={isRunning && index === lastAssistantIndex}
                   />

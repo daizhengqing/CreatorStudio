@@ -61,7 +61,7 @@ export function ActionHistory({ entries }: Props) {
           )}
 
           <span className="font-medium">
-            Action History · {entries.length} 步
+            执行过程 · {entries.length} 步
           </span>
 
           {currentRunningStep && (

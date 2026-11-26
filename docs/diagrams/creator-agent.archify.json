@@ -12,7 +12,7 @@
     { "id": "web", "type": "frontend", "label": "本地网页", "sublabel": "对话 · 任务 · 预览", "pos": [235, 52], "size": [133, 62] },
     { "id": "agent", "type": "backend", "label": "Creator Agent", "sublabel": "Pi 会话与工具调用", "pos": [505, 52], "size": [158, 62] },
     { "id": "harness", "type": "backend", "label": "领域服务", "sublabel": "媒体 · 热点 · X", "pos": [833, 52], "size": [148, 62] },
-    { "id": "model", "type": "external", "label": "本地或远程模型", "sublabel": "Chat Completions", "pos": [235, 239], "size": [133, 62] },
+    { "id": "model", "type": "external", "label": "当前启用的模型", "sublabel": "OpenAI · Anthropic", "pos": [235, 239], "size": [133, 62] },
     { "id": "sessions", "type": "database", "label": "Pi 会话历史", "sublabel": "本机 JSONL", "pos": [505, 239], "size": [158, 62] },
     { "id": "data", "type": "database", "label": "素材与任务数据", "sublabel": "SQLite 和媒体文件", "pos": [833, 239], "size": [148, 62] }
   ],

@@ -1,20 +1,29 @@
-import { useEffect, useState } from 'react';
-import type { Asset, ModelConfig, ModelConfigInput, ModelProfileId, RunAccepted, SessionSummary } from '@creator-studio/contracts';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Asset, RunAccepted, SessionListEvent, SessionSummary } from '@creator-studio/contracts';
 import { api, json, messageOf } from './api';
 import { useSession } from './agent/use-session';
 import { useToast } from './ui/Toast';
-import { IconMenu } from './layout/IconMenu';
+import { IconMenu, type AppView } from './layout/IconMenu';
 import { SessionSidebar } from './layout/SessionSidebar';
 import { ChatView } from './views/ChatView';
-import { SettingsView } from './views/SettingsView';
+import { SettingsView, type SettingsSection } from './views/SettingsView';
+import { TrendsView } from './views/TrendsView';
+import { XMonitorView } from './views/XMonitorView';
 
 const SELECTION_KEY = 'creator-studio.session';
 const THEME_KEY = 'creator-studio.theme';
 const SIDEBAR_COLLAPSE_KEY = 'creator-studio.sidebar-collapsed';
 
+function readView(): AppView {
+  const hash = window.location.hash.slice(1);
+  return hash === 'trends' || hash === 'x-monitor' || hash === 'settings' ? hash : 'chat';
+}
+
 export function App() {
   const toast = useToast();
-  const [view, setView] = useState<'chat' | 'settings'>('chat');
+  const [view, setView] = useState(readView);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('model');
+  const [settingsReturn, setSettingsReturn] = useState<Exclude<AppView, 'settings'>>('chat');
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem(THEME_KEY) as 'light' | 'dark') || 'light';
   });
@@ -24,7 +33,8 @@ export function App() {
 
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [model, setModel] = useState<ModelConfig | null>(null);
+  const selection = useRef<string | null>(null);
+  const [sessionListOffline, setSessionListOffline] = useState(false);
 
   const [draft, setDraft] = useState('');
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -37,7 +47,21 @@ export function App() {
   const { snapshot, offline } = useSession(selected);
   const summary = snapshot?.session;
   const busy = snapshot?.run?.status === 'running' || Boolean(waitingRun && waitingRun !== snapshot?.run?.id);
-  const profile = model?.profiles[model.activeProfile];
+
+  const selectSession = useCallback((id: string | null) => {
+    selection.current = id;
+    setSelected(id);
+    setWaitingRun(null);
+    setError('');
+    if (id) localStorage.setItem(SELECTION_KEY, id);
+    else localStorage.removeItem(SELECTION_KEY);
+  }, []);
+
+  useEffect(() => {
+    const updateView = () => setView(readView());
+    window.addEventListener('hashchange', updateView);
+    return () => window.removeEventListener('hashchange', updateView);
+  }, []);
 
   // 初始化主题样式类
   useEffect(() => {
@@ -50,59 +74,63 @@ export function App() {
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  // 初始化会话列表与模型配置
+  // 后台任务的新会话也从同一条会话列表事件流推送。
   useEffect(() => {
-    const controller = new AbortController();
-    void api<SessionSummary[]>('/api/agent/sessions', { signal: controller.signal })
-      .then(list => {
-        setSessions(list);
-        const last = localStorage.getItem(SELECTION_KEY);
-        if (last && list.some(session => session.id === last)) {
-          setSelected(last);
+    const stream = new EventSource('/api/agent/session-list/events');
+    let current: SessionSummary[] = [];
+    let receivedSnapshot = false;
+    stream.onmessage = message => {
+      const event = JSON.parse(message.data) as SessionListEvent;
+      setSessionListOffline(false);
+      if (event.type === 'snapshot') {
+        const previous = selection.current;
+        if (!receivedSnapshot && !previous) {
+          const last = localStorage.getItem(SELECTION_KEY);
+          if (last && event.sessions.some(session => session.id === last)) selectSession(last);
+        } else if (current.some(session => session.id === previous) && !event.sessions.some(session => session.id === previous)) {
+          selectSession(event.sessions[0]?.id ?? null);
         }
-      })
-      .catch(err => {
-        if (!controller.signal.aborted) setError(messageOf(err));
-      });
-
-    void api<ModelConfig>('/api/models/config', { signal: controller.signal })
-      .then(setModel)
-      .catch(err => {
-        if (!controller.signal.aborted) setError(messageOf(err));
-      });
-
-    return () => controller.abort();
-  }, []);
-
-  // 监听并同步当前会话更新
-  useEffect(() => {
-    if (summary) {
-      setSessions(previous =>
-        [summary, ...previous.filter(session => session.id !== summary.id)].sort(
-          (a, b) => b.updatedAt - a.updatedAt,
-        ),
-      );
-    }
-  }, [summary]);
+        receivedSnapshot = true;
+        current = event.sessions;
+      } else if (event.type === 'upsert') {
+        current = [event.session, ...current.filter(session => session.id !== event.session.id)]
+          .sort((a, b) => b.updatedAt - a.updatedAt);
+      } else {
+        current = current.filter(session => session.id !== event.sessionId);
+        if (selection.current === event.sessionId) selectSession(current[0]?.id ?? null);
+      }
+      setSessions(current);
+    };
+    stream.onerror = () => setSessionListOffline(true);
+    return () => stream.close();
+  }, [selectSession]);
 
   // 运行完成后重置等待标志
   useEffect(() => {
     if (waitingRun === snapshot?.run?.id) setWaitingRun(null);
   }, [waitingRun, snapshot?.run?.id]);
 
-  function selectSession(id: string | null) {
-    setSelected(id);
-    setWaitingRun(null);
-    setError('');
-    if (id) localStorage.setItem(SELECTION_KEY, id);
-    else localStorage.removeItem(SELECTION_KEY);
+  function navigate(next: AppView) {
+    setView(next);
+    if (readView() !== next) window.location.hash = next;
+  }
+
+  function openRunSession(id: string) {
+    selectSession(id);
+    navigate('chat');
+  }
+
+  function openSettings(section: SettingsSection = 'model') {
+    if (view !== 'settings') setSettingsReturn(view);
+    setSettingsSection(section);
+    navigate('settings');
   }
 
   function handleNewSession() {
     selectSession(null);
     setDraft('');
     setAssets([]);
-    setView('chat');
+    navigate('chat');
   }
 
   function handleToggleTheme() {
@@ -157,33 +185,6 @@ export function App() {
     }
   }
 
-  async function handleSwitchProfile(profileId: ModelProfileId) {
-    if (!model || model.activeProfile === profileId) return;
-    try {
-      const input: ModelConfigInput = {
-        activeProfile: profileId,
-        proxyUrl: model.proxyUrl,
-        profiles: {
-          local: { baseUrl: model.profiles.local.baseUrl, model: model.profiles.local.model },
-          remote: { baseUrl: model.profiles.remote.baseUrl, model: model.profiles.remote.model },
-        },
-      };
-      const updated = await api<ModelConfig>('/api/models/config', json('PUT', input));
-      setModel(updated);
-      toast.success(`已切换为${profileId === 'local' ? '本地模型' : '远程 API'}`);
-    } catch (err) {
-      const msg = messageOf(err);
-      setError(msg);
-      toast.error(msg);
-    }
-  }
-
-  function handleReplay(text: string, replayAssets: Asset[]) {
-    setDraft(text);
-    setAssets(replayAssets);
-    toast.info('已回填历史输入');
-  }
-
   function toggleSidebar() {
     setSidebarCollapsed(prev => {
       const next = !prev;
@@ -195,11 +196,6 @@ export function App() {
   async function handleDeleteSession(id: string) {
     try {
       await api(`/api/agent/sessions/${id}`, { method: 'DELETE' });
-      setSessions(prev => prev.filter(s => s.id !== id));
-      if (selected === id) {
-        const remaining = sessions.filter(s => s.id !== id);
-        selectSession(remaining[0]?.id ?? null);
-      }
       toast.info('会话已删除');
     } catch (err) {
       const msg = messageOf(err);
@@ -210,10 +206,7 @@ export function App() {
 
   async function handleRenameSession(id: string, newTitle: string) {
     try {
-      const updated = await api<SessionSummary>(`/api/agent/sessions/${id}`, json('PATCH', { title: newTitle }));
-      setSessions(prev =>
-        prev.map(s => (s.id === id ? { ...s, title: updated.title, updatedAt: updated.updatedAt } : s)),
-      );
+      await api(`/api/agent/sessions/${id}`, json('PATCH', { title: newTitle }));
       toast.success('会话已重命名');
     } catch (err) {
       const msg = messageOf(err);
@@ -227,16 +220,16 @@ export function App() {
       {/* 最左侧固定图标导航栏 */}
       <IconMenu
         currentView={view}
-        onSelectView={setView}
+        onSelectView={next => next === 'settings' ? openSettings() : navigate(next)}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
 
-      {/* 主界面内容：会话视图 或 独立设置页视图 */}
-      {view === 'chat' ? (
+      {view === 'chat' && (
         <div className="chat-layout">
           <SessionSidebar
             sessions={sessions}
+            offline={sessionListOffline}
             selectedId={selected}
             onSelectSession={selectSession}
             onNewSession={handleNewSession}
@@ -264,23 +257,16 @@ export function App() {
             onRemoveAsset={id => setAssets(list => list.filter(asset => asset.id !== id))}
             onSend={() => { void handleSend(); }}
             onStop={() => { void handleStop(); }}
-            onNewSession={handleNewSession}
-            onOpenSettings={() => setView('settings')}
-            modelConfig={model}
-            onSwitchProfile={id => { void handleSwitchProfile(id); }}
-            onReplay={handleReplay}
-            modelName={profile?.model || 'Agent'}
-            isModelVerified={profile?.agentVerified}
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={toggleSidebar}
           />
         </div>
-      ) : (
-        <SettingsView
-          model={model}
-          onModel={setModel}
-          onBack={() => setView('chat')}
-        />
+      )}
+      {view === 'trends' && <TrendsView onOpenSettings={() => openSettings('trends')} />}
+      {view === 'x-monitor' && <XMonitorView onOpenSettings={() => openSettings('x')} />}
+      {view === 'settings' && (
+        <SettingsView key={settingsSection} initialSection={settingsSection} onBack={() => navigate(settingsReturn)}
+          onOpenRunSession={openRunSession} />
       )}
     </div>
   );

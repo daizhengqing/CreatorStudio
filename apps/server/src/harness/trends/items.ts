@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { createCollectionSignals } from '../collection-signals.js';
 import type { AiState, Category, CollectedBatch, CollectedItem, ItemPage, ItemQuery, ItemSource, SourceDefinition, TimeKind, TrendItem } from './contracts.js';
 import { readRow, readRows, type SqlValue, type TrendsDatabase } from './database.js';
 
@@ -26,6 +27,7 @@ function needsAi(title: string, content: string): boolean {
 }
 
 export function createItems(db: TrendsDatabase, definitions: SourceDefinition[], aiAvailability: () => { ready: boolean; automatic: boolean }) {
+  const { append, latestSequence, listNew } = createCollectionSignals(db);
   const names = new Map(definitions.map(source => [source.id, source.name]));
   function toItem(row: ItemRow, onlySource?: string): TrendItem {
     const ai = aiAvailability();
@@ -89,6 +91,7 @@ export function createItems(db: TrendsDatabase, definitions: SourceDefinition[],
     if (!existing) {
       db.prepare(`INSERT INTO items(id,url,primary_source,title,content,category,published_at,updated_at,first_seen_at,time_kind,content_hash,ai_state) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
         .run(id, url, source.id, title, content, source.category, incoming.publishedAt, incoming.updatedAt, firstSeenAt, incoming.timeKind, hash, state);
+      append({ id, title, text: content, url, source: source.name, publishedAt: incoming.publishedAt, collectedAt: now });
     } else if (changed) {
       db.prepare(`UPDATE items SET url=?,title=?,content=?,content_hash=?,ai_state=?,ai_error=NULL,ai_attempt=0,ai_manual=0,ai_ready_at=0 WHERE id=?`)
         .run(own ? url : existing.url, title, content, hash, state, id);
@@ -131,5 +134,5 @@ export function createItems(db: TrendsDatabase, definitions: SourceDefinition[],
       db.prepare('DELETE FROM ai_cache WHERE created_at<?').run(Date.now() - 30 * DAY);
     })();
   }
-  return { list, get, ranked, ingest, saveTopic, cleanup, removeTopic: (id: string) => { db.prepare('DELETE FROM topics WHERE item_id=?').run(id); } };
+  return { list, get, ranked, ingest, saveTopic, cleanup, latestSequence, listNew, removeTopic: (id: string) => { db.prepare('DELETE FROM topics WHERE item_id=?').run(id); } };
 }

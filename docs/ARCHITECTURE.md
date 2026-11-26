@@ -8,7 +8,7 @@
 | --- | --- |
 | [网页](../apps/web/src/App.tsx) | 编辑并提交用户输入，显示会话、工具结果和任务状态，提供模型及采集凭据的设置 |
 | [Pi 会话](../apps/server/src/agent/session-service.ts) | 加载模型和本轮工具，管理运行和停止，发布可重连的会话快照和增量 |
-| [Pi 运行时](../apps/server/src/agent/runtime.ts) | 配置 Creator 指令和资源，选择应用注册的 29 个工具，通过 Chat Completions 调用模型 |
+| [Pi 运行时](../apps/server/src/agent/runtime.ts) | 配置 Creator 指令和资源，注册创作工具，按模型设置选择 OpenAI Chat Completions 或 Anthropic Messages |
 | [热点服务](../apps/server/src/harness/trends/index.ts) 与 [X Monitor](../apps/server/src/harness/x-monitor/index.ts) | 管理采集状态、定时任务、选题、推文与登录会话 |
 | [媒体服务](../apps/server/src/services/media.ts) | 登记原始媒体，使用 yt-dlp 下载，使用 FFmpeg 导出，保存并提供可查询的任务状态 |
 

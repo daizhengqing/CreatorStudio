@@ -29,7 +29,7 @@ const parseModelText = (content: string, title: string, hasBody: boolean): Model
 };
 
 export const generateChineseText = async (
-  job: Pick<AiJob, 'title' | 'content'>, complete: ReturnType<ModelService['active']>['complete'], signal?: AbortSignal,
+  job: Pick<AiJob, 'title' | 'content'>, complete: NonNullable<ReturnType<ModelService['active']>>['complete'], signal?: AbortSignal,
 ): Promise<ModelText> => {
   const title = job.title.trim();
   const sourceText = job.content.trim().slice(0, 6_000);

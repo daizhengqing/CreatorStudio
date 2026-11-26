@@ -1,0 +1,32 @@
+.schedule-settings { display: grid; gap: 18px; font-size: 13px; }
+.schedule-panel { min-width: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.schedule-panel-header, .schedule-task-heading {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+}
+.schedule-panel-header { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.schedule-panel h2, .schedule-panel h3 { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.schedule-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.schedule-muted, .schedule-panel-message { color: var(--muted-foreground); font-size: 12px; }
+.schedule-count { display: inline-flex; margin-inline-start: 4px; padding: 2px 6px; border-radius: 4px; background: var(--muted); font-size: 11px; font-weight: 500; }
+.schedule-panel-message { padding: 14px 16px; }
+.schedule-task-list { padding: 0 16px; }
+.schedule-task { padding: 12px 0; }
+.schedule-task + .schedule-task, .schedule-run + .schedule-run { border-top: 1px solid var(--border-subtle); }
+.schedule-delete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.schedule-form { padding: 14px 16px; }
+.schedule-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.schedule-form textarea {
+  min-height: 96px; width: 100%; resize: vertical; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+}
+.schedule-form textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.schedule-enable { display: flex; align-items: center; gap: 8px; }
+.schedule-enable input { appearance: auto; accent-color: var(--primary); }
+.schedule-panel-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.schedule-run > summary { padding: 12px 16px; cursor: pointer; }
+.schedule-run > summary .schedule-muted, .schedule-run > summary .status-error { margin-inline-start: 10px; }
+.schedule-run-result { display: grid; gap: 10px; padding: 0 16px 14px; }
+.schedule-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .schedule-form-row { grid-template-columns: 1fr; }
+}

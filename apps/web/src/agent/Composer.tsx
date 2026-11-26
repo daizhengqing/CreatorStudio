@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent, type ClipboardEvent, type DragEvent } from 'react';
 import {
   ArrowUp,
-  Check,
-  ChevronDown,
-  ExternalLink,
   FileAudio,
   FileImage,
   Film,
-  Infinity as InfinityIcon,
   LoaderCircle,
   Paperclip,
   Square,
   UploadCloud,
   X,
 } from 'lucide-react';
-import type { Asset, ModelConfig, ModelProfileId } from '@creator-studio/contracts';
+import type { Asset } from '@creator-studio/contracts';
 import { cn } from '@creator-studio/ui/utils';
 import { formatBytes, formatDuration } from '../utils/format';
 
@@ -31,19 +27,11 @@ type Props = {
   error: string;
   onSend: () => void;
   onStop: () => void;
-  modelConfig: ModelConfig | null;
-  onSwitchProfile: (profileId: ModelProfileId) => void;
-  onOpenSettings: () => void;
-};
-
-const profileNames: Record<ModelProfileId, string> = {
-  local: '本地模型',
-  remote: '远程 API',
 };
 
 /**
  * 底部输入框组件
- * 支持：自适应高度输入、剪贴板图片粘贴、文件拖拽上传、素材富媒体预览、原地模型切换菜单
+ * 支持自适应高度输入、剪贴板图片粘贴、文件拖拽上传和素材预览
  */
 export function Composer({
   draft,
@@ -58,21 +46,14 @@ export function Composer({
   error,
   onSend,
   onStop,
-  modelConfig,
-  onSwitchProfile,
-  onOpenSettings,
 }: Props) {
   const pickerRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const dragCounterRef = useRef(0);
 
   const canSend = Boolean(draft.trim() && !busy && !uploading && !sending);
-  const activeProfile = modelConfig?.profiles[modelConfig.activeProfile];
-  const modelLabel = activeProfile?.model || 'Agent';
 
   // 监听输入内容变化，自适应动态调整高度
   useEffect(() => {
@@ -82,18 +63,6 @@ export function Composer({
     const nextHeight = Math.min(Math.max(el.scrollHeight, 42), 200);
     el.style.height = `${nextHeight}px`;
   }, [draft]);
-
-  // 监听全局点击以关闭模型切换弹出菜单
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -238,131 +207,59 @@ export function Composer({
             }}
           />
 
-          {/* 底部操作工具栏 */}
+          {/* 添加附件与发送或停止 */}
           <div className="composer-toolbar">
-            {/* 左侧：原地模型切换胶囊与下拉气泡菜单 */}
-            <div className="relative" ref={menuRef}>
+            <input
+              ref={pickerRef}
+              type="file"
+              multiple
+              hidden
+              accept=".mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.flac,.jpg,.jpeg,.png,.webp"
+              onChange={event => {
+                onAttach(Array.from(event.target.files ?? []));
+                event.target.value = '';
+              }}
+            />
+
+            <button
+              type="button"
+              className="composer-attach-btn"
+              title="添加素材"
+              aria-label="添加素材"
+              disabled={uploading || assets.length >= 20}
+              onClick={() => pickerRef.current?.click()}
+            >
+              <Paperclip size={17} />
+            </button>
+
+            {busy ? (
               <button
                 type="button"
-                className={cn('composer-agent-badge', { active: menuOpen })}
-                title="切换模型或查看设置"
-                onClick={() => setMenuOpen(!menuOpen)}
+                className="composer-submit-btn busy"
+                aria-label="停止运行"
+                disabled={stopping}
+                onClick={onStop}
               >
-                <InfinityIcon size={14} className="agent-icon" />
-                <span className="agent-text">{modelLabel}</span>
-                <ChevronDown
-                  size={13}
-                  className={cn('agent-chevron transition-transform duration-150', {
-                    'rotate-180': menuOpen,
-                  })}
-                />
+                {stopping ? (
+                  <LoaderCircle size={15} className="animate-spin" />
+                ) : (
+                  <Square size={14} />
+                )}
               </button>
-
-              {/* 原地模型快捷切换下拉面板 */}
-              {menuOpen && modelConfig && (
-                <div className="composer-model-dropdown">
-                  <div className="model-dropdown-header">选择当前工作模型</div>
-
-                  {(['local', 'remote'] as ModelProfileId[]).map(id => {
-                    const prof = modelConfig.profiles[id];
-                    const isSelected = modelConfig.activeProfile === id;
-                    const isVerified = prof.agentVerified;
-
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        className={cn('model-dropdown-item', { active: isSelected })}
-                        onClick={() => {
-                          onSwitchProfile(id);
-                          setMenuOpen(false);
-                        }}
-                      >
-                        <div className="model-item-title-row">
-                          <span className={`status-dot ${isVerified ? 'status-ready' : ''}`} />
-                          <span className="model-item-name">{profileNames[id]}</span>
-                          {isSelected && <Check size={14} className="ml-auto text-primary" />}
-                        </div>
-                        <span className="model-item-sub truncate">
-                          {prof.model || '未配置模型 ID'}
-                        </span>
-                      </button>
-                    );
-                  })}
-
-                  <div className="model-dropdown-divider" />
-
-                  <button
-                    type="button"
-                    className="model-dropdown-item settings-link"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenSettings();
-                    }}
-                  >
-                    <span>配置模型与 API 地址</span>
-                    <ExternalLink size={12} className="ml-auto text-muted-foreground" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="composer-toolbar-spacer" />
-
-            {/* 右侧：添加附件与发送/停止按钮 */}
-            <div className="composer-toolbar-actions">
-              <input
-                ref={pickerRef}
-                type="file"
-                multiple
-                hidden
-                accept=".mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.flac,.jpg,.jpeg,.png,.webp"
-                onChange={event => {
-                  onAttach(Array.from(event.target.files ?? []));
-                  event.target.value = '';
-                }}
-              />
-
+            ) : (
               <button
-                type="button"
-                className="composer-attach-btn"
-                title="添加素材"
-                aria-label="添加素材"
-                disabled={uploading || assets.length >= 20}
-                onClick={() => pickerRef.current?.click()}
+                type="submit"
+                className="composer-submit-btn"
+                aria-label="发送消息"
+                disabled={!canSend}
               >
-                <Paperclip size={17} />
+                {sending ? (
+                  <LoaderCircle size={15} className="animate-spin" />
+                ) : (
+                  <ArrowUp size={16} />
+                )}
               </button>
-
-              {busy ? (
-                <button
-                  type="button"
-                  className="composer-submit-btn busy"
-                  aria-label="停止运行"
-                  disabled={stopping}
-                  onClick={onStop}
-                >
-                  {stopping ? (
-                    <LoaderCircle size={15} className="animate-spin" />
-                  ) : (
-                    <Square size={14} />
-                  )}
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="composer-submit-btn"
-                  aria-label="发送消息"
-                  disabled={!canSend}
-                >
-                  {sending ? (
-                    <LoaderCircle size={15} className="animate-spin" />
-                  ) : (
-                    <ArrowUp size={16} />
-                  )}
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </form>
       </div>

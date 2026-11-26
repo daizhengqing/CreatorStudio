@@ -38,9 +38,33 @@
 
 ## 设置
 
-模型配置通过 `GET /api/models/config` 读取，通过 `PUT /api/models/config` 保存。配置包含 `activeProfile`、`proxyUrl` 和 `profiles.local`、`profiles.remote`。每个配置填写 `baseUrl`、`model` 和可选的 `apiKey`。省略 `apiKey` 时保留已保存密钥，传入空串时清除。读取时返回 `hasKey`、`agentVerified` 和 `summaryVerified`。
+### 模型
 
-向 `POST /api/models/test` 提交 `{"profileId":"local"}`，返回 `agent` 和 `summary` 两项结果，每项包含 `ok` 与 `message`。
+| 方法与路径 | 用途 | 返回 |
+| --- | --- | --- |
+| `GET /api/models/config` | 读取模型列表和当前选择 | 配置 |
+| `POST /api/models` | 新增模型。当前无模型时自动启用 | HTTP 201，配置 |
+| `PUT /api/models/:id` | 更新指定模型 | 配置 |
+| `POST /api/models/:id/activate` | 将指定模型用于后续对话和热点摘要 | 配置 |
+| `DELETE /api/models/:id` | 删除指定模型。删除当前模型时启用首个剩余有效模型 | 配置 |
+| `POST /api/models/:id/test` | 测试已保存模型的流式工具调用和 JSON 摘要 | `{agent, summary, config}`。两项检查均返回 `{ok, message}` |
+
+新增和更新模型提交以下字段。`protocol` 可选 `openai-completions` 或 `anthropic-messages`。`proxyUrl` 留空时直连，`contextWindow` 填正整数或 `null`。编辑时省略 `apiKey` 会保留已保存的密钥，传入空字符串会清除。
+
+```json
+{
+  "protocol": "openai-completions",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "model": "qwen3",
+  "proxyUrl": "",
+  "contextWindow": null,
+  "supportsImages": false
+}
+```
+
+配置包含 `activeModelId` 和 `models`。未启用模型时 `activeModelId` 为 `null`。每个模型包含 `id`、密钥以外的配置字段，以及 `hasKey`、`agentVerified` 和 `summaryVerified`。无效的配置返回 HTTP 400，访问不存在的模型返回 HTTP 404。
+
+### 采集
 
 | 方法与路径 | 用途 |
 | --- | --- |

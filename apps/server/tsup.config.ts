@@ -1,4 +1,4 @@
-import { copyFile } from 'node:fs/promises';
+import { copyFile, cp } from 'node:fs/promises';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
@@ -10,8 +10,10 @@ export default defineConfig({
   async onSuccess() {
     await Promise.all([
       copyFile('src/harness/x-monitor/bridge.py', 'dist/bridge.py'),
+      copyFile('src/harness/x-monitor/research.py', 'dist/research.py'),
       copyFile('src/harness/x-monitor/requirements.txt', 'dist/requirements.txt'),
       copyFile('src/harness/trends/NOTICE.md', 'dist/NOTICE.md'),
+      cp('src/agent/skills', 'dist/skills', { recursive: true }),
     ]);
   },
 });

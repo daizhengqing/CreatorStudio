@@ -1,31 +1,30 @@
 import { useState } from 'react';
-import { ArrowLeft, Cpu, Flame, Radio } from 'lucide-react';
-import type { ModelConfig } from '@creator-studio/contracts';
+import { ArrowLeft, Clock, Cpu, Flame, Radio } from 'lucide-react';
 import { cn } from '@creator-studio/ui/utils';
 import { ModelSettings } from '../settings/ModelSettings';
 import { TrendSettings } from '../settings/TrendSettings';
 import { XSettings } from '../settings/XSettings';
+import { ScheduleSettings } from '../settings/ScheduleSettings';
 
-type NavSection = 'model' | 'trends' | 'x';
+export type SettingsSection = 'model' | 'trends' | 'x' | 'schedules';
 
-type Props = {
-  model: ModelConfig | null;
-  onModel: (config: ModelConfig) => void;
-  onBack: () => void;
-};
-
-const navItems: { id: NavSection; label: string; icon: typeof Cpu }[] = [
+const navItems: { id: SettingsSection; label: string; icon: typeof Cpu }[] = [
   { id: 'model', label: '模型', icon: Cpu },
   { id: 'trends', label: '热点采集', icon: Flame },
   { id: 'x', label: 'X 账号', icon: Radio },
+  { id: 'schedules', label: '定时任务', icon: Clock },
 ];
 
 /**
  * 独立全屏设置视图
  * 包含左侧二级分类导航、左下角返回按钮，以及右侧配置表单大卡片
  */
-export function SettingsView({ model, onModel, onBack }: Props) {
-  const [section, setSection] = useState<NavSection>('model');
+export function SettingsView({ initialSection, onBack, onOpenRunSession }: {
+  initialSection: SettingsSection;
+  onBack: () => void;
+  onOpenRunSession: (id: string) => void;
+}) {
+  const [section, setSection] = useState(initialSection);
 
   return (
     <div className="settings-page">
@@ -68,10 +67,11 @@ export function SettingsView({ model, onModel, onBack }: Props) {
           </h1>
         </header>
 
-        <div className="settings-pane-content">
-          {section === 'model' && <ModelSettings config={model} onSave={onModel} />}
+        <div className={cn('settings-pane-content', { 'model-pane-content': section === 'model' || section === 'schedules' })}>
+          {section === 'model' && <ModelSettings />}
           {section === 'trends' && <TrendSettings />}
           {section === 'x' && <XSettings />}
+          {section === 'schedules' && <ScheduleSettings onOpenRunSession={onOpenRunSession} />}
         </div>
       </main>
     </div>

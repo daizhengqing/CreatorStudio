@@ -1,0 +1,14 @@
+.x-draft-cards { display: grid; gap: 10px; }
+.assistant-message-container > .x-draft-cards { margin-top: 12px; }
+.x-draft-card {
+  display: grid; gap: 8px; min-width: 0; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+}
+.x-draft-card > header {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+}
+.x-draft-card h3 { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.x-draft-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.x-draft-reason, .x-draft-sources { color: var(--muted-foreground); font-size: 12px; }
+.x-draft-sources { display: flex; flex-wrap: wrap; gap: 10px; }
+.x-draft-sources a { text-decoration: underline; text-underline-offset: 2px; }

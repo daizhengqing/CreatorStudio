@@ -1,5 +1,5 @@
-import { Aperture, ArrowUpRight, Clapperboard, Flame, PanelLeft, Plus, Radio } from 'lucide-react';
-import type { AgentRun, Asset, ChatEntry, ModelConfig, ModelProfileId, SessionSummary } from '@creator-studio/contracts';
+import { Aperture, ArrowUpRight, Clapperboard, Flame, PanelLeft, Radio } from 'lucide-react';
+import type { AgentRun, Asset, ChatEntry, SessionSummary } from '@creator-studio/contracts';
 import { Button } from '@creator-studio/ui/button';
 import { Composer } from '../agent/Composer';
 import { Transcript } from '../agent/Transcript';
@@ -27,20 +27,13 @@ type Props = {
   onRemoveAsset: (id: string) => void;
   onSend: () => void;
   onStop: () => void;
-  onNewSession: () => void;
-  onOpenSettings: () => void;
-  modelConfig: ModelConfig | null;
-  onSwitchProfile: (profileId: ModelProfileId) => void;
-  onReplay: (text: string, assets: Asset[]) => void;
-  modelName?: string;
-  isModelVerified?: boolean;
-  sidebarCollapsed?: boolean;
-  onToggleSidebar?: () => void;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
 };
 
 /**
  * 右侧主会话交互区域
- * 包含顶部 Tab 栏、消息流/欢迎页、以及底部现代输入框
+ * 包含会话标题、消息流或欢迎页，以及底部输入框
  */
 export function ChatView({
   selectedSession,
@@ -59,25 +52,17 @@ export function ChatView({
   onRemoveAsset,
   onSend,
   onStop,
-  onNewSession,
-  onOpenSettings,
-  modelConfig,
-  onSwitchProfile,
-  onReplay,
-  modelName,
-  isModelVerified,
   sidebarCollapsed,
   onToggleSidebar,
 }: Props) {
   return (
     <div className="chat-view">
-      {/* 顶部标签栏 */}
-      <header className="chat-header">
-        <div className="chat-tab-container">
-          {sidebarCollapsed && onToggleSidebar && (
+      {(selectedSession || sidebarCollapsed) && (
+        <header className="chat-header">
+          {sidebarCollapsed && (
             <button
               type="button"
-              className="chat-header-btn mr-1.5"
+              className="chat-header-btn"
               title="展开工作台侧栏"
               aria-label="展开工作台侧栏"
               onClick={onToggleSidebar}
@@ -85,41 +70,11 @@ export function ChatView({
               <PanelLeft size={16} />
             </button>
           )}
-
-          <div className="chat-tab active">
-            <span className="chat-tab-title truncate">
-              {selectedSession?.title || '新对话'}
-            </span>
-          </div>
-        </div>
-
-        <div className="chat-header-actions">
-          {/* 模型状态指示 */}
-          {modelName && (
-            <button
-              type="button"
-              className="chat-model-badge"
-              title="模型设置"
-              onClick={onOpenSettings}
-            >
-              <span className={`status-dot ${isModelVerified ? 'status-ready' : ''}`} />
-              <span className="truncate">{modelName}</span>
-            </button>
+          {selectedSession && (
+            <span className="chat-session-title truncate">{selectedSession.title}</span>
           )}
-
-          {/* 新建会话按钮 */}
-          <button
-            type="button"
-            className="chat-header-btn"
-            title="新建对话"
-            aria-label="新建对话"
-            disabled={busy || sending}
-            onClick={onNewSession}
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* 主对话区 / 初始欢迎区 */}
       <div className="chat-body">
@@ -129,7 +84,6 @@ export function ChatView({
             entries={entries}
             run={run}
             offline={offline}
-            onReplay={onReplay}
           />
         ) : (
           <section className="welcome-screen" aria-labelledby="welcome-title">
@@ -170,9 +124,6 @@ export function ChatView({
         error={error}
         onSend={onSend}
         onStop={onStop}
-        modelConfig={modelConfig}
-        onSwitchProfile={onSwitchProfile}
-        onOpenSettings={onOpenSettings}
       />
     </div>
   );

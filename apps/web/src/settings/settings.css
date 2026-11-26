@@ -21,7 +21,7 @@
 }
 .settings-back-btn:hover { background: var(--muted); color: var(--foreground); }
 
-.settings-main-pane { flex: 1; overflow-y: auto; padding: 36px 44px; }
+.settings-main-pane { flex: 1; min-width: 0; overflow-y: auto; padding: 36px 44px; }
 .settings-pane-header { margin-bottom: 24px; }
 .settings-pane-title { font-size: 26px; font-weight: 700; margin: 0; }
 .settings-pane-content { max-width: 660px; }
@@ -51,13 +51,64 @@
   padding: 0 10px; background: var(--card); color: var(--foreground);
 }
 .settings-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.model-profiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.model-profile {
-  display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border);
-  border-radius: 8px; padding: 12px; background: var(--card);
+.model-pane-content { max-width: 800px; }
+.model-list-card { border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.model-list-header {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
 }
-.model-profile legend { font-weight: 600; font-size: 13px; padding: 0 6px; }
-.check-list { font-size: 11px; color: var(--muted-foreground); display: flex; flex-direction: column; gap: 3px; }
+.model-list-header h2, .model-dialog-header h2 { font-size: 14px; font-weight: 650; }
+.model-list { padding: 0 18px; }
+.model-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  padding: 13px 0;
+}
+.model-row + .model-row { border-top: 1px solid var(--border-subtle); }
+.model-row-summary { flex: 1 1 200px; min-width: 0; }
+.model-row-title { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.model-row-title h3 { font-size: 14px; font-weight: 550; }
+.model-active {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 1px 6px; border-radius: 4px; background: var(--accent); color: var(--accent-foreground);
+  font-size: 11px; font-weight: 550;
+}
+.model-row-actions { display: flex; gap: 4px; margin-left: auto; }
+.model-note { color: var(--muted-foreground); font-size: 12px; }
+.model-empty { padding: 22px 18px; }
+.model-loading { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.model-list-error { padding: 0 18px 14px; font-size: 12px; }
+
+/* 原生模态层让编辑和确认共用操作区与键盘行为。 */
+.model-dialog {
+  width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); margin: auto;
+  overflow-y: auto; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card); color: var(--foreground); box-shadow: 0 16px 48px rgb(0 0 0 / 16%);
+}
+.model-dialog::backdrop { background: rgb(0 0 0 / 32%); }
+.model-dialog-header, .model-dialog-footer { display: flex; align-items: center; gap: 8px; padding: 12px 18px; }
+.model-dialog-header { justify-content: space-between; border-bottom: 1px solid var(--border); }
+.model-dialog-footer { justify-content: flex-end; border-top: 1px solid var(--border); background: var(--surface); }
+.model-dialog-fields { display: flex; flex-direction: column; gap: 14px; padding: 16px 18px; min-width: 0; font-size: 13px; }
+.model-dialog :is(input, select):focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.model-key-field { display: flex; align-items: end; gap: 8px; }
+.model-key-field .settings-field { flex: 1; min-width: 0; }
+.model-key-field button { margin-bottom: 3px; }
+.model-image-option { display: flex; align-items: center; gap: 8px; }
+.model-image-option input { width: 15px; height: 15px; appearance: auto; accent-color: var(--primary); }
+.model-advanced summary { width: fit-content; color: var(--muted-foreground); cursor: pointer; }
+.model-advanced .settings-field { margin-top: 8px; }
+.model-test-panel {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+.model-checks { display: grid; gap: 2px; color: var(--muted-foreground); font-size: 11px; overflow-wrap: anywhere; }
+
+@media (max-width: 680px) {
+  .settings-sidebar { width: 132px; }
+  .settings-main-pane { padding: 24px 14px; }
+  .model-list-header, .model-empty { padding-inline: 12px; }
+  .model-list { padding-inline: 12px; }
+}
 .account-list { display: flex; flex-direction: column; gap: 6px; }
 .account-list li {
   display: flex; justify-content: space-between; align-items: center; padding: 6px 10px;

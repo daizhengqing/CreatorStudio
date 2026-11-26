@@ -14,6 +14,7 @@ import { cn } from '@creator-studio/ui/utils';
 
 type Props = {
   sessions: SessionSummary[];
+  offline: boolean;
   selectedId: string | null;
   onSelectSession: (id: string | null) => void;
   onNewSession: () => void;
@@ -28,6 +29,10 @@ type SessionGroup = {
   label: string;
   sessions: SessionSummary[];
 };
+
+const sessionTime = new Intl.DateTimeFormat('zh-CN', {
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+});
 
 /**
  * 将会话列表按今天、昨天、近 7 天、更早进行时间轴分组
@@ -71,6 +76,7 @@ function groupSessionsByTime(sessions: SessionSummary[]): SessionGroup[] {
  */
 export function SessionSidebar({
   sessions,
+  offline,
   selectedId,
   onSelectSession,
   onNewSession,
@@ -192,7 +198,8 @@ export function SessionSidebar({
           </div>
         )}
 
-        {filteredSessions.length === 0 && (
+        {offline && <p className="sidebar-empty-tip" role="status">正在重新连接会话列表…</p>}
+        {!offline && filteredSessions.length === 0 && (
           <p className="sidebar-empty-tip">
             {keyword ? '未找到匹配的会话' : '暂无会话，点击新建开始'}
           </p>
@@ -253,7 +260,10 @@ export function SessionSidebar({
           }}
         >
           <MessageSquare size={14} className="session-item-icon" />
-          <span className="session-item-title truncate">{session.title}</span>
+          <span className="session-item-title truncate" title={session.title}>{session.title}</span>
+          <time className="session-item-time" dateTime={new Date(session.updatedAt).toISOString()}>
+            {sessionTime.format(session.updatedAt)}
+          </time>
         </button>
 
         {/* 悬停操作按钮组 / 删除确认组 */}

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { XMonitorAuthor, XMonitorTweet } from '@creator-studio/contracts';
 import type { LoginAccount, LoginDetails } from './contracts.js';
 import { createPythonRuntime } from './python.js';
+import type { ResearchInput, ResearchResult } from './research.js';
 
 export type TimelinePage = {
   items: XMonitorTweet[];
@@ -20,6 +21,7 @@ type Calls = {
   removeAccount: { input: { username: string }; output: null };
   resolveTarget: { input: { handle: string }; output: XMonitorAuthor | null };
   timelinePage: { input: { userId: string; cursor: string | null }; output: TimelinePage };
+  research: { input: ResearchInput; output: ResearchResult };
 };
 
 const failures = {
@@ -30,6 +32,7 @@ const failures = {
   totp_required: 'X 要求两步验证，请填写 TOTP 密钥后重新登录。',
   login_failed: 'X 登录失败，请检查登录和验证信息，或使用浏览器 Cookie。',
   invalid_cookie: 'Cookie 格式有误，需包含 auth_token 和 ct0。',
+  invalid_cursor: 'X 查询游标无效，请用同一查询返回的 nextCursor，或从第一页重新读取。',
   timeout: '请求 X 超时，请稍后重试。',
   upstream: '读取 X 数据失败，请稍后重试。',
 } as const;
@@ -38,7 +41,7 @@ type Result<T> = { ok: true; result: T } | { ok: false; error: Failure };
 
 function requestError(failure: Failure) {
   return Object.assign(new Error(failures[failure.code]), failure, {
-    statusCode: ['invalid_cookie', 'login_failed', 'email_verification_required', 'totp_required'].includes(failure.code)
+    statusCode: ['invalid_cookie', 'invalid_cursor', 'login_failed', 'email_verification_required', 'totp_required'].includes(failure.code)
       ? 400 : failure.code === 'rate_limited' ? 429 : 503,
   });
 }
@@ -66,7 +69,7 @@ export function createBridge(directory: string, lifetime: AbortSignal) {
     const timeout = AbortSignal.timeout(method === 'saveAccount' ? 120_000 : 50_000);
     const signal = AbortSignal.any([requested, timeout]);
     return new Promise((resolve, reject) => {
-      const child = spawn(python, ['-u', script, database], {
+      const child = spawn(python, ['-B', '-u', script, database], {
         cwd: sessionDirectory, signal, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true,
       });
       const output: string[] = [];

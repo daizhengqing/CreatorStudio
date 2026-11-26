@@ -15,7 +15,7 @@ export function createQueue(db: TrendsDatabase, automatic: () => boolean): AiRep
     finishAiJob(job, result) {
       db.transaction(() => {
         db.prepare("UPDATE items SET ai_state='completed',ai_error=NULL,title_zh=?,summary_zh=?,ai_model=?,ai_profile=?,ai_generated_at=?,ai_manual=0 WHERE id=? AND content_hash=?")
-          .run(result.titleZh, result.summaryZh, result.model, result.profileId, result.generatedAt, job.itemId, job.inputHash);
+          .run(result.titleZh, result.summaryZh, result.model, result.modelId, result.generatedAt, job.itemId, job.inputHash);
         db.prepare('INSERT OR REPLACE INTO ai_cache(key,result,created_at) VALUES (?,?,?)').run(result.cacheKey, JSON.stringify(result), Date.now());
       })();
     },

@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import type {
   XMonitorAuthor, XMonitorTarget, XMonitorTweet, XMonitorTweetCursor, XMonitorTweetQuery,
 } from '@creator-studio/contracts';
+import { createCollectionSignals } from '../collection-signals.js';
 import { MINUTE_MS, type Backfill, type UpdateTarget } from './contracts.js';
 import type { processPage, Scan } from './scan.js';
 
@@ -80,6 +81,7 @@ export function openStore(directory: string) {
     CREATE INDEX IF NOT EXISTS x_tweets_time ON tweets(published_at DESC, id DESC);
     CREATE INDEX IF NOT EXISTS x_tweets_target ON tweets(target_id, published_at DESC, id DESC);
   `);
+  const { append, latestSequence, listNew } = createCollectionSignals(db);
   const targetById = db.prepare<[string], TargetRow>(`SELECT ${targetFields} FROM targets WHERE id = ?`);
   const dueTarget = db.prepare<[], TargetRow>(`SELECT ${targetFields} FROM targets WHERE enabled = 1 ORDER BY next_run_at, id LIMIT 1`);
   const allTargets = db.prepare<[], TargetRow>(`SELECT ${targetFields} FROM targets ORDER BY removed, handle`);
@@ -104,9 +106,7 @@ export function openStore(directory: string) {
   const insertTweet = db.prepare<ReturnType<typeof tweetRecord>>(`
     INSERT INTO tweets (id, target_id, published_at, kind, has_media, search_text, payload)
     VALUES (@id, @targetId, @publishedAt, @kind, @hasMedia, @searchText, @payload)
-    ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, has_media = excluded.has_media,
-      search_text = excluded.search_text, payload = excluded.payload
-    WHERE tweets.payload <> excluded.payload
+    ON CONFLICT(id) DO NOTHING
   `);
   const refreshTweet = db.prepare<ReturnType<typeof tweetRecord>>(`
     UPDATE tweets SET kind = @kind, has_media = @hasMedia, search_text = @searchText, payload = @payload
@@ -116,7 +116,20 @@ export function openStore(directory: string) {
 
   const commitPage = db.transaction((target: TargetJob, page: ReturnType<typeof processPage>, now: number) => {
     let changes = 0;
-    for (const tweet of page.tweets) changes += insertTweet.run(tweetRecord(tweet)).changes;
+    for (const tweet of page.tweets) {
+      const record = tweetRecord(tweet);
+      if (insertTweet.run(record).changes === 0) {
+        changes += refreshTweet.run(record).changes;
+        continue;
+      }
+      changes += 1;
+      const source = `@${tweet.author.handle}`;
+      const reference = tweet.reference ? `原帖 @${tweet.reference.author.handle}：${tweet.reference.text}` : '';
+      append({
+        id: tweet.id, title: `${source} 的推文`, text: [tweet.text, reference].filter(Boolean).join('\n'),
+        url: tweet.url, source: `X ${source}`, publishedAt: tweet.publishedAt, collectedAt: now,
+      });
+    }
     for (const tweet of page.refresh) changes += refreshTweet.run(tweetRecord(tweet)).changes;
 
     const author = [...page.tweets, ...page.refresh].find(tweet => tweet.author.handle && tweet.author.avatarUrl)?.author;
@@ -155,6 +168,8 @@ export function openStore(directory: string) {
     wakeBlocked: (now: number) => wakeBlocked.run(now),
     writeFailure: (id: string, state: FailureState, message: string, nextRunAt: number) => writeFailure.run(state, message, nextRunAt, id),
     commitPage,
+    latestSequence,
+    listNew,
     getTweet(id: string): XMonitorTweet | null {
       const row = tweetById.get(id);
       return row ? JSON.parse(row.payload) as XMonitorTweet : null;

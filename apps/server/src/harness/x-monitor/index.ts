@@ -1,5 +1,6 @@
 import type { AddTarget, LoginDetails, RuntimeStatus, UpdateTarget } from '@creator-studio/contracts';
 import { createBridge, describeFailure } from './bridge.js';
+import type { ResearchInput } from './research.js';
 import { createScheduler } from './scheduler.js';
 import { openStore } from './store.js';
 
@@ -48,6 +49,15 @@ export function createXMonitorService(directory: string) {
       return account;
     },
     removeLoginAccount: (username: string) => bridge.call('removeAccount', { username: normalizeHandle(username) }),
+    research(input: ResearchInput, signal?: AbortSignal) {
+      if (input.operation === 'bookmarks') {
+        return bridge.call('research', { ...input, account: normalizeHandle(input.account) }, signal);
+      }
+      if (input.operation === 'user_about' || (input.operation === 'user' && 'handle' in input)) {
+        return bridge.call('research', { ...input, handle: normalizeHandle(input.handle) }, signal);
+      }
+      return bridge.call('research', input, signal);
+    },
     async addTarget({ handle, intervalMinutes, backfill }: AddTarget, signal?: AbortSignal) {
       const author = await bridge.call('resolveTarget', { handle: normalizeHandle(handle) }, signal);
       signal?.throwIfAborted();
@@ -78,6 +88,8 @@ export function createXMonitorService(directory: string) {
     listTargets,
     listTweets: store.listTweets,
     getTweet: store.getTweet,
+    latestSequence: store.latestSequence,
+    listNew: store.listNew,
     dispose() {
       lifetime.abort();
       scheduler.dispose();

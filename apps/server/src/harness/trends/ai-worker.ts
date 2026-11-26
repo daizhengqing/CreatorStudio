@@ -3,10 +3,10 @@ import type { ModelService } from '@creator-studio/contracts';
 import type { AiJob, AiRepository } from './contracts.js';
 import { aiPromptVersion, generateChineseText } from './ai-client.js';
 
-type ActiveModel = ReturnType<ModelService['active']>;
+type ActiveModel = NonNullable<ReturnType<ModelService['active']>>;
 const cacheKeyFor = (job: AiJob, model: ActiveModel): string => {
   return createHash('sha256').update(JSON.stringify([
-    job.inputHash, model.id, model.baseUrl, model.model, aiPromptVersion, 'zh',
+    job.inputHash, model.id, model.protocol, model.baseUrl, model.model, aiPromptVersion, 'zh',
   ])).digest('hex');
 };
 
@@ -25,7 +25,7 @@ export const createAiWorker = (repo: AiRepository, models: ModelService): { wake
     try {
       const text = await generateChineseText(job, model.complete, controller.signal);
       if (disposed) return;
-      repo.finishAiJob(job, { ...text, profileId: model.id, model: model.model, generatedAt: Date.now(), cacheKey });
+      repo.finishAiJob(job, { ...text, modelId: model.id, model: model.model, generatedAt: Date.now(), cacheKey });
     } catch (error) {
       if (disposed) return;
       const retryAt = job.attempt === 0 && error instanceof Error && 'retryAfterMs' in error && typeof error.retryAfterMs === 'number'
@@ -42,8 +42,7 @@ export const createAiWorker = (repo: AiRepository, models: ModelService): { wake
       while (!disposed) {
         // 每次领取任务时读取配置，已开始的请求继续使用自己的配置快照。
         const model = models.active();
-        const concurrency = model.id === 'local' ? 1 : 2;
-        if (!model.verified || active.size >= concurrency) break;
+        if (!model?.verified || active.size >= 2) break;
         const job = repo.takeAiJob();
         if (!job) break;
         const controller = new AbortController();

@@ -19,8 +19,8 @@ export function xTools(x: ReturnType<typeof createXMonitorService>) {
       hasMedia: Type.Optional(Type.Boolean()),
       cursor: Type.Optional(Type.Object({ publishedAt: date, id: Type.String() })),
       limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
-    }), input => {
-      const data = x.listTweets({ ...input, limit: input.limit ?? 10 });
+    }), ({ search, ...query }) => {
+      const data = x.listTweets({ ...query, q: search, limit: query.limit ?? 10 });
       return { data, summary: `返回 ${data.items.length} 条推文` };
     }),
     creatorTool('get_x_tweet', '查看推文详情', '按推文 ID 读取已采集正文、链接、媒体以及引用关系。', targetId, ({ id }) => {

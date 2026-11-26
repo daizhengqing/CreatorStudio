@@ -11,7 +11,7 @@ import { closeTransport } from './http.js';
 export function createTrendsService(directory: string, models: ModelService) {
   const db = openDatabase(directory, sourceDefinitions);
   const settings = createSettings(db, sourceDefinitions);
-  const modelReady = () => models.active().verified;
+  const modelReady = () => models.active()?.verified ?? false;
   const automatic = () => settings.getConfig().autoGenerate;
   const items = createItems(db, sourceDefinitions, () => ({ ready: modelReady(), automatic: automatic() }));
   const queue = createQueue(db, automatic);
@@ -70,6 +70,8 @@ export function createTrendsService(directory: string, models: ModelService) {
   return {
     list: items.list,
     get: items.get,
+    latestSequence: items.latestSequence,
+    listNew: items.listNew,
     rankings(query: { search?: string; category?: Category; sourceId?: string; limit?: number }) {
       return settings.sources()
         .filter(source => (source.kind === 'hot' || source.kind === 'community') && (!query.sourceId || query.sourceId === source.id) && (!query.category || query.category === source.category))
