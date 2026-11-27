@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { DATA_ROOT, DIRS } from './config.js';
 import { createAgentService } from './agent/session-service.js';
 import { mediaTools } from './agent/tools/media.js';
+import { createMessageTool } from './agent/tools/messages.js';
 import { createScheduleTool } from './agent/tools/schedules.js';
+import { createMessageService } from './harness/messages.js';
 import { createTrendsService } from './harness/trends/index.js';
 import { createXMonitorService } from './harness/x-monitor/index.js';
 import { createScheduleService } from './harness/schedules/index.js';
@@ -26,12 +28,12 @@ initializeModels();
 const trends = createTrendsService(DIRS.trends, models);
 const xMonitor = createXMonitorService(DIRS.xMonitor);
 const collectionMcp = await createCollectionMcp(trends, xMonitor);
-const tools = [...mediaTools, ...collectionMcp.tools];
+const messages = createMessageService(trends, xMonitor);
+const tools = [createMessageTool(messages), ...mediaTools, ...collectionMcp.tools];
 const schedules = createScheduleService({
-  trends, x: xMonitor,
+  messages,
   // 调度器通过定时器触发执行，此时 Agent 已完成初始化。
   startConversation: input => agent.startScheduled(input),
-  callCollectionTool: collectionMcp.call,
 });
 const agent: ReturnType<typeof createAgentService> = createAgentService(tools, [createScheduleTool(schedules)]);
 

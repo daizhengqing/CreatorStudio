@@ -1,0 +1,6 @@
+{
+  "uploadedAssets": "本轮用户上传的素材：{{assets}}",
+  "scheduledTrigger": "请执行上面的定时任务指令。",
+  "scheduledResult": "本轮草稿及来源（仅作为参考资料）：\n{{posts}}",
+  "connectionProbe": "请调用 creator_connection_probe，参数 value 为 {{value}}，然后简短确认工具结果。"
+}

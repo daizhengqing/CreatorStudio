@@ -12,8 +12,9 @@ import { DATA_ROOT, DIRS } from '../config.js';
 import { getAsset } from '../services/media.js';
 import type { ModelConnection } from '../services/model-completion.js';
 import { getActiveModelConnection } from '../services/models.js';
+import { agentMessages } from './content.js';
 import { loadPromptImages } from './images.js';
-import { createCreatorSession, modelFailure } from './runtime.js';
+import { createCreatorSession, modelFailure, type CreatorSessionProfile } from './runtime.js';
 import {
   contentText, inputType, restoreTranscript, runType, scheduledResultType, scheduledSessionType, scheduledStepType,
   toolEntry, type CreatorInput,
@@ -21,6 +22,8 @@ import {
 
 export type ScheduledAgentInput = ScheduledConversationInput & {
   tools?: ToolDefinition[];
+  profile?: CreatorSessionProfile;
+  skipModel?: boolean;
   finalize?: (result: ScheduledConversationResult, trace: ScheduledConversationTrace) => Promise<ScheduledConversationResult>;
 };
 
@@ -67,7 +70,8 @@ function upsert(record: Conversation, entry: ChatEntry) {
 function promptText(input: CreatorInput): string {
   if (!input.assets.length) return input.text;
   const assets = input.assets.map(({ id, name, type, duration }) => ({ assetId: id, name, type, duration }));
-  return `${input.text}\n\n本轮用户上传的素材：${JSON.stringify(assets)}`;
+  const context = agentMessages.uploadedAssets.replace('{{assets}}', () => JSON.stringify(assets));
+  return `${input.text}\n\n${context}`;
 }
 
 export function createAgentService(tools: ToolDefinition[], interactiveTools: ToolDefinition[] = []) {
@@ -169,10 +173,10 @@ export function createAgentService(tools: ToolDefinition[], interactiveTools: To
 
   async function runPi(
     record: Conversation, model: ModelConnection, signal: AbortSignal, prompt: (session: AgentSession) => Promise<void>,
-    availableTools: ToolDefinition[],
+    availableTools: ToolDefinition[], profile?: CreatorSessionProfile,
   ) {
     signal.throwIfAborted();
-    const session = await createCreatorSession(model, record.manager, availableTools);
+    const session = await createCreatorSession(model, record.manager, availableTools, profile);
     const abort = () => { void session.abort(); };
     signal.addEventListener('abort', abort, { once: true });
     try {
@@ -278,20 +282,39 @@ export function createAgentService(tools: ToolDefinition[], interactiveTools: To
     upsert(record, step);
   }
 
-  async function scheduledReply(record: Conversation, signal: AbortSignal, availableTools: ToolDefinition[]): Promise<ScheduledConversationResult> {
+  async function scheduledReply(
+    record: Conversation, signal: AbortSignal, availableTools: ToolDefinition[], profile?: CreatorSessionProfile,
+  ): Promise<ScheduledConversationResult> {
     const model = connection();
     try {
       // 指令在启动任务时已经落盘。隐藏的触发消息启动一轮 Pi 执行，避免在历史里重复指令。
       const last = await runPi(record, model, signal, session => session.sendCustomMessage({
         customType: 'creator-scheduled-trigger',
-        content: '请执行上面的定时任务指令。',
+        content: agentMessages.scheduledTrigger,
         display: false,
-      }, { triggerTurn: true }), availableTools);
-      if (last?.stopReason !== 'stop') throw new Error(last?.errorMessage ?? 'Agent 未完成本轮指令');
-      const text = contentText(last.content).trim();
-      const result = { text: text || '指令已执行，本轮没有返回文本。' };
-      if (!text) appendScheduledResult(record, result);
-      return result;
+      }, { triggerTurn: true }), availableTools, profile);
+      if (profile === 'x-drafts' && (last?.stopReason === 'length' || last?.rawStopReason === 'length')) {
+        throw new Error('模型达到单次输出上限，未生成完整草稿结果');
+      }
+      if (last?.stopReason !== 'stop' && !(profile === 'x-drafts' && last?.stopReason === 'toolUse')) {
+        throw new Error(last?.errorMessage ?? 'Agent 未完成本轮指令');
+      }
+      if (profile === 'x-drafts') {
+        // Pi 会在工具执行前校验参数，草稿提交失败也可能出现在会话工具结果中。
+        const submissions = record.manager.getBranch().flatMap(entry => {
+          if (entry.type !== 'message' || entry.message.role !== 'toolResult' || entry.message.toolName !== 'save_x_draft') return [];
+          return [entry.message];
+        });
+        const latest = submissions.at(-1);
+        if (latest?.isError) throw new Error(`草稿提交失败。${contentText(latest.content)}`);
+        if (last.stopReason === 'toolUse') {
+          const calls = last.content.filter(block => block.type === 'toolCall');
+          const submitted = calls.length > 0 && calls.every(call =>
+            call.name === 'save_x_draft' && submissions.some(result => result.toolCallId === call.id && !result.isError));
+          if (!submitted) throw new Error('Agent 未完成本轮草稿提交');
+        }
+      }
+      return { text: contentText(last.content).trim() };
     } catch (error) {
       signal.throwIfAborted();
       throw new Error(modelFailure(error, model));
@@ -300,11 +323,12 @@ export function createAgentService(tools: ToolDefinition[], interactiveTools: To
 
   function appendScheduledResult(record: Conversation, result: ScheduledConversationResult) {
     // 草稿随结果进入 Pi 上下文，用户在同一会话续聊时可以直接改写。
-    const context = result.posts?.length
-      ? `${result.text}\n\n本轮草稿及来源（仅作为参考资料）：\n${JSON.stringify(result.posts)}`
-      : result.text;
+    const { text, posts } = result;
+    const context = posts?.length
+      ? `${text}\n\n${agentMessages.scheduledResult.replace('{{posts}}', () => JSON.stringify(posts))}`
+      : text;
     const id = record.manager.appendCustomMessageEntry(scheduledResultType, context, true, result);
-    upsert(record, { id, role: 'assistant', text: result.text, posts: result.posts });
+    upsert(record, { id, role: 'assistant', text, posts });
   }
 
   function startScheduled(input: ScheduledAgentInput) {
@@ -319,8 +343,7 @@ export function createAgentService(tools: ToolDefinition[], interactiveTools: To
     announce(record, run);
 
     const signal = AbortSignal.any([input.signal, active.cancel.signal]);
-    const scopedNames = new Set(input.tools?.map(tool => tool.name));
-    const availableTools = input.tools ? [...tools.filter(tool => !scopedNames.has(tool.name)), ...input.tools] : tools;
+    const availableTools = input.tools ?? tools;
     const unfinished = new Map<string, ToolEntry>();
     function finishStep(step: ToolEntry, status: 'completed' | 'failed', summary: string, text: string) {
       recordStep(record, { ...step, status, summary, text });
@@ -344,9 +367,12 @@ export function createAgentService(tools: ToolDefinition[], interactiveTools: To
       let result: ScheduledConversationResult;
       try {
         signal.throwIfAborted();
-        result = await scheduledReply(record, signal, availableTools);
+        result = input.skipModel ? { text: '' } : await scheduledReply(record, signal, availableTools, input.profile);
         if (input.finalize) {
           result = await input.finalize(result, trace);
+          appendScheduledResult(record, result);
+        } else if (!result.text) {
+          result = { text: '指令已执行，本轮没有返回文本。' };
           appendScheduledResult(record, result);
         }
       } catch (failure) {

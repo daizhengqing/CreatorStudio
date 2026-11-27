@@ -2,24 +2,21 @@ import type {
   ScheduledConversationResult, ScheduledRunSummary, ScheduledTaskInput,
 } from '@creator-studio/contracts';
 import type { ScheduledAgentInput } from '../../agent/session-service.js';
+import type { createMessageService } from '../messages.js';
 import { runConversationStep } from './conversation-step.js';
-import { prepareDraftRun, scheduledDraftPrompt, type CallCollectionTool, type CollectionFeed } from './drafts.js';
+import { prepareDraftRun, scheduledDraftPrompt } from './drafts.js';
 import { openScheduleStore, scheduleError } from './store.js';
 
 type ScheduleServices = {
-  trends: CollectionFeed;
-  x: CollectionFeed;
+  messages: Pick<ReturnType<typeof createMessageService>, 'latestCursors' | 'listBatch'>;
   startConversation(input: ScheduledAgentInput): { sessionId: string; done: Promise<ScheduledConversationResult> };
-  callCollectionTool: CallCollectionTool;
 };
 
-export function createScheduleService({ trends, x, startConversation, callCollectionTool }: ScheduleServices) {
+export function createScheduleService({ messages, startConversation }: ScheduleServices) {
   const store = openScheduleStore();
   const shutdown = new AbortController();
   const active = new Map<string, Promise<void>>();
   let timer: NodeJS.Timeout | undefined;
-
-  const baseline = () => ({ trends: trends.latestSequence(), x: x.latestSequence() });
 
   function wake() {
     clearTimeout(timer);
@@ -53,9 +50,12 @@ export function createScheduleService({ trends, x, startConversation, callCollec
     try {
       const input: ScheduledAgentInput = { title: `定时 · ${task.name}`, prompt: task.prompt, signal };
       if (task.kind === 'x-drafts') {
-        const draftRun = prepareDraftRun({ trends: task.trendsCursor, x: task.xCursor }, baseline(), callCollectionTool);
+        const current = { trends: task.trendsCursor, x: task.xCursor };
+        const draftRun = prepareDraftRun(messages.listBatch(current, messages.latestCursors()));
         input.prompt = scheduledDraftPrompt(task.prompt);
         input.tools = draftRun.tools;
+        input.skipModel = draftRun.empty;
+        input.profile = 'x-drafts';
         input.finalize = async (_result, trace) => {
           trace.signal.throwIfAborted();
           const { cursors, posts, scanned } = draftRun.finish();
@@ -105,12 +105,12 @@ export function createScheduleService({ trends, x, startConversation, callCollec
     list: store.list,
     history: store.history,
     create(input: ScheduledTaskInput) {
-      const task = store.create(input, input.kind === 'x-drafts' ? baseline() : { trends: 0, x: 0 });
+      const task = store.create(input, input.kind === 'x-drafts' ? messages.latestCursors() : { trends: 0, x: 0 });
       wake();
       return task;
     },
     update(id: string, input: ScheduledTaskInput) {
-      const task = store.update(id, input, baseline);
+      const task = store.update(id, input, messages.latestCursors);
       wake();
       return task;
     },

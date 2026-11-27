@@ -12,6 +12,18 @@
 | [热点服务](../apps/server/src/harness/trends/index.ts) 与 [X Monitor](../apps/server/src/harness/x-monitor/index.ts) | 管理采集状态、定时任务、选题、推文与登录会话 |
 | [媒体服务](../apps/server/src/services/media.ts) | 登记原始媒体，使用 yt-dlp 下载，使用 FFmpeg 导出，保存并提供可查询的任务状态 |
 
+## Agent 规则和工作流
+
+运行资源集中在 `apps/server/src/agent/content/`。服务启动时读入规则和模板，构建将整个目录复制到 `apps/server/dist/content/`。仓库根目录的 `AGENTS.md` 记录开发约定。
+
+| 文件 | 使用时机 |
+| --- | --- |
+| [AGENTS.md](../apps/server/src/agent/content/AGENTS.md) | 创建 Pi 会话时用作系统指令。查询已采集资料的指引适用于同时提供 `search_x_posts` 和 `get_messages` 的会话 |
+| [采集 Skill](../apps/server/src/agent/content/skills/collection-research/SKILL.md) | 会话提供 `search_x_posts` 时开放 `read_skill`。Agent 调用后读取安排采集、管理监控和研究 X 的步骤 |
+| [X 草稿工作流](../apps/server/src/agent/content/workflows/x-drafts.md) | 调度器为 `x-drafts` 任务附加选题、引用和提交流程。有新增消息时将任务指令交给模型 |
+| [messages.json](../apps/server/src/agent/content/messages.json) | 处理附件、触发定时任务、带入草稿结果或检查模型连接时填充对应模板 |
+| [tool-metadata.json](../apps/server/src/agent/content/tool-metadata.json) | 注册工具时提供标题、说明和参数文案 |
+
 ## 一轮对话
 
 ```mermaid

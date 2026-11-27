@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { ScheduledRun, ScheduledRunSummary, ScheduledTask, ScheduledTaskInput } from '@creator-studio/contracts';
 import { sqlite } from '../../db/index.js';
+import type { MessageCursors } from '../messages.js';
 
 export const MINUTE_MS = 60_000;
-export type Cursors = { trends: number; x: number };
 type TaskRow = Omit<ScheduledTask, 'lastRun' | 'enabled'> & { enabled: number; trendsCursor: number; xCursor: number };
 type RunRow = Omit<ScheduledRun, 'posts' | 'scanned'> & { posts: string; scanned: string | null };
 type RunResult = Pick<ScheduledRun, 'output' | 'posts' | 'scanned'>;
@@ -93,7 +93,7 @@ export function openScheduleStore() {
     return task;
   }
 
-  function saveTask(input: ScheduledTaskInput, id: string, cursors: Cursors, previous?: TaskRow) {
+  function saveTask(input: ScheduledTaskInput, id: string, cursors: MessageCursors, previous?: TaskRow) {
     const name = input.name.trim();
     const prompt = input.prompt.trim();
     if (!name || !prompt) throw scheduleError('请填写任务名称和执行指令', 400);
@@ -128,7 +128,7 @@ export function openScheduleStore() {
     return { task, run };
   });
 
-  const finish = sqlite.transaction((run: ScheduledRunSummary, result: RunResult, cursors?: Cursors) => {
+  const finish = sqlite.transaction((run: ScheduledRunSummary, result: RunResult, cursors?: MessageCursors) => {
     const update = finishRun.run(Date.now(), 'completed', null, result.output, JSON.stringify(result.posts), result.scanned && JSON.stringify(result.scanned), run.id);
     if (update.changes && cursors) advanceCursors.run(cursors.trends, cursors.x, run.taskId);
   });
@@ -136,8 +136,8 @@ export function openScheduleStore() {
   return {
     scheduled: () => scheduled.get(),
     list: () => listTasks.all().map(publicTask),
-    create: (input: ScheduledTaskInput, cursors: Cursors) => saveTask(input, randomUUID(), cursors),
-    update: (id: string, input: ScheduledTaskInput, baseline: () => Cursors) => {
+    create: (input: ScheduledTaskInput, cursors: MessageCursors) => saveTask(input, randomUUID(), cursors),
+    update: (id: string, input: ScheduledTaskInput, baseline: () => MessageCursors) => {
       const previous = taskById(id);
       if (isRunning.get(id) && (previous.name !== input.name.trim() || previous.prompt !== input.prompt.trim()
         || previous.kind !== input.kind || previous.intervalMinutes !== input.intervalMinutes)) {
@@ -159,7 +159,7 @@ export function openScheduleStore() {
       insertSessionLink.run(run.id, sessionId);
       return { ...run, sessionId };
     },
-    finish: (run: ScheduledRunSummary, result: RunResult, cursors?: Cursors) => finish.immediate(run, result, cursors),
+    finish: (run: ScheduledRunSummary, result: RunResult, cursors?: MessageCursors) => finish.immediate(run, result, cursors),
     fail(run: ScheduledRunSummary, status: 'failed' | 'interrupted', error: string) {
       finishRun.run(Date.now(), status, error, null, '[]', null, run.id);
     },

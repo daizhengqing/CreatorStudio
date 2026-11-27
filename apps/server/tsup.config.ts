@@ -13,7 +13,7 @@ export default defineConfig({
       copyFile('src/harness/x-monitor/research.py', 'dist/research.py'),
       copyFile('src/harness/x-monitor/requirements.txt', 'dist/requirements.txt'),
       copyFile('src/harness/trends/NOTICE.md', 'dist/NOTICE.md'),
-      cp('src/agent/skills', 'dist/skills', { recursive: true }),
+      cp('src/agent/content', 'dist/content', { recursive: true }),
     ]);
   },
 });

@@ -29,6 +29,7 @@ function needsAi(title: string, content: string): boolean {
 export function createItems(db: TrendsDatabase, definitions: SourceDefinition[], aiAvailability: () => { ready: boolean; automatic: boolean }) {
   const { append, latestSequence, listNew } = createCollectionSignals(db);
   const names = new Map(definitions.map(source => [source.id, source.name]));
+  const contentResetAt = Number(readRow<{ value: string }>(db, 'SELECT value FROM settings WHERE key=?', 'contentResetAt')?.value ?? 0);
   function toItem(row: ItemRow, onlySource?: string): TrendItem {
     const ai = aiAvailability();
     const occurrences = readRows<OccurrenceRow>(db, `SELECT source_id,rank,previous_rank,heat FROM occurrences WHERE item_id=? ${onlySource ? 'AND source_id=?' : ''} ORDER BY source_id,active DESC,rank IS NULL,rank`, row.id, ...(onlySource ? [onlySource] : []));
@@ -77,9 +78,10 @@ export function createItems(db: TrendsDatabase, definitions: SourceDefinition[],
     const urlHash = digest(url);
     const seen = readRow<{ first_seen_at: number }>(db, 'SELECT first_seen_at FROM seen_items WHERE url_hash=?', urlHash);
     const firstSeenAt = seen?.first_seen_at ?? existing?.first_seen_at ?? now;
-    // 内容清理后仍保留轻量指纹，避免旧订阅条目重新入库并重置保留期限。
+    // 保留去重指纹，让常规过期清理和一次性清空历史都能识别已经采过的链接。
     db.prepare('INSERT OR IGNORE INTO seen_items(url_hash,first_seen_at) VALUES (?,?)').run(urlHash, firstSeenAt);
-    if (!existing && (firstSeenAt < now - 30 * DAY || (source.kind === 'feed' && incoming.publishedAt !== null && incoming.publishedAt < now - 30 * DAY))) return false;
+    const retainFrom = now - 30 * DAY;
+    if (!existing && (firstSeenAt < Math.max(retainFrom, contentResetAt) || (source.kind === 'feed' && incoming.publishedAt !== null && incoming.publishedAt < retainFrom))) return false;
     const own = !existing || existing.primary_source === source.id;
     const title = own ? incoming.title : existing.title;
     const content = own ? incoming.content || existing?.content || '' : existing.content || incoming.content;
